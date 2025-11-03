@@ -1,6 +1,10 @@
 const dotenv = require("dotenv");
 dotenv.config();
 
+// Connect to MongoDB
+const connectDB = require("./config/db");
+connectDB();
+
 // --- Express App Setup ---
 const express = require("express");
 const cors = require("cors");
@@ -37,13 +41,13 @@ const chatSocket = require("./socket/chatSocket");
 
 const server = http.createServer(app);
 const io = new Server(server, {
-	cors: { origin: true, credentials: true },
+  cors: { origin: true, credentials: true },
 });
 chatSocket(io);
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
-	console.log(`Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
 
 
