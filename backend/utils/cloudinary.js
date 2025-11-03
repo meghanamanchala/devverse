@@ -1,0 +1,1 @@
+// Cloudinary utility for image uploads
