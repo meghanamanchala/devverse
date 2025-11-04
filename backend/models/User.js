@@ -7,6 +7,7 @@ const userSchema = new mongoose.Schema({
 	password: { type: String, required: true },
 	followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
 	following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+	skills: [{ type: String }],
 	// Add more fields as needed (avatar, bio, etc.)
 }, { timestamps: true });
 

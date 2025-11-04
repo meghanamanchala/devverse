@@ -10,7 +10,8 @@ const {
     likePost, 
     unlikePost, 
     addComment, 
-    deleteComment 
+    deleteComment, 
+    searchPosts
 } = require('../controllers/postController');
 const authMiddleware = require('../middleware/authMiddleware');
 
@@ -19,6 +20,9 @@ router.post('/', authMiddleware, createPost);
 
 // @route   GET /api/posts
 router.get('/', getPosts);
+
+// @route   GET /api/posts/search?q=term
+router.get('/search', searchPosts);
 
 // @route   GET /api/posts/:id
 router.get('/:id', getPost);
@@ -40,5 +44,8 @@ router.post('/:id/comments', authMiddleware, addComment);
 
 // @route   DELETE /api/posts/:id/comments/:commentId
 router.delete('/:id/comments/:commentId', authMiddleware, deleteComment);
+
+// @route   GET /api/posts/search?q=term
+router.get('/search', searchPosts);
 
 module.exports = router;

@@ -139,3 +139,20 @@ exports.deleteComment = async (req, res, next) => {
     next(err);
   }
 };
+
+// Search posts by text or tags
+exports.searchPosts = async (req, res, next) => {
+  try {
+    const { q } = req.query;
+    if (!q) return res.json({ success: true, posts: [] });
+    const posts = await Post.find({
+      $or: [
+        { text: { $regex: q, $options: 'i' } },
+        { tags: { $regex: q, $options: 'i' } }
+      ]
+    }).populate('author', 'username').sort({ createdAt: -1 });
+    res.json({ success: true, posts });
+  } catch (err) {
+    next(err);
+  }
+};
