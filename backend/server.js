@@ -9,6 +9,9 @@ connectDB();
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
+const helmet = require("helmet");
+const morgan = require("morgan");
+const path = require("path");
 const errorHandler = require("./middleware/errorHandler");
 
 // Route imports
@@ -20,8 +23,16 @@ const notificationRoutes = require("./routes/notificationRoutes");
 
 const app = express();
 
-app.use(cors({ origin: true, credentials: true }));
-app.use(express.json());
+// Security and logging
+app.use(helmet());
+app.use(morgan("dev"));
+
+// CORS config
+const allowedOrigins = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(",")
+  : ["http://localhost:3000"];
+app.use(cors({ origin: allowedOrigins, credentials: true }));
+app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser());
 
 // API routes
@@ -30,6 +41,14 @@ app.use("/api/users", userRoutes);
 app.use("/api/posts", postRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/notifications", notificationRoutes);
+
+// Serve static files in production
+if (process.env.NODE_ENV === "production") {
+  app.use(express.static(path.join(__dirname, "../frontend/build")));
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(__dirname, "../frontend/build", "index.html"));
+  });
+}
 
 // Error handler
 app.use(errorHandler);
@@ -41,7 +60,7 @@ const chatSocket = require("./socket/chatSocket");
 
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: true, credentials: true },
+  cors: { origin: allowedOrigins, credentials: true },
 });
 chatSocket(io);
 
