@@ -1,20 +1,54 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Socket.io Test</title>
+    <title>Socket.io Chat Test</title>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   </head>
   <body>
-    <h1>Socket.io Test</h1>
-    <div id="status">Connecting...</div>
+    <h2>Socket.io Chat Test</h2>
+    <div>
+      <label>Your User ID: <input id="myId" /></label>
+      <button onclick="joinRoom()">Join</button>
+    </div>
+    <div>
+      <label>Send To User ID: <input id="toId" /></label>
+      <input id="msg" placeholder="Message" />
+      <button onclick="sendMsg()">Send Message</button>
+    </div>
+    <div>
+      <label>Send Notification To User ID: <input id="notifToId" /></label>
+      <input id="notifMsg" placeholder="Notification" />
+      <button onclick="sendNotif()">Send Notification</button>
+    </div>
+    <pre id="log"></pre>
     <script>
       const socket = io("http://localhost:5000");
-      socket.on("connect", () => {
-        document.getElementById("status").textContent = "Connected! Socket ID: " + socket.id;
-        console.log("Connected!", socket.id);
+      function log(msg) {
+        document.getElementById("log").textContent += msg + "\n";
+      }
+      function joinRoom() {
+        const myId = document.getElementById("myId").value;
+        socket.emit("join", myId);
+        log("Joined room: " + myId);
+      }
+      function sendMsg() {
+        const sender = document.getElementById("myId").value;
+        const receiver = document.getElementById("toId").value;
+        const text = document.getElementById("msg").value;
+        socket.emit("sendMessage", { sender, receiver, text });
+        log("Sent message to " + receiver + ": " + text);
+      }
+      function sendNotif() {
+        const receiver = document.getElementById("notifToId").value;
+        const message = document.getElementById("notifMsg").value;
+        socket.emit("sendNotification", { receiver, notification: { type: "custom", message } });
+        log("Sent notification to " + receiver + ": " + message);
+      }
+      socket.on("receiveMessage", (msg) => {
+        log("Received message: " + JSON.stringify(msg));
       });
-      socket.on("disconnect", () => {
-        document.getElementById("status").textContent = "Disconnected";
+      socket.on("receiveNotification", (notif) => {
+        log("Received notification: " + JSON.stringify(notif));
       });
     </script>
   </body>
