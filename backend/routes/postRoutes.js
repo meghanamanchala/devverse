@@ -1,5 +1,6 @@
 // Post routes
 const express = require('express');
+const { body } = require('express-validator');
 const router = express.Router();
 const { 
     createPost, 
@@ -14,9 +15,16 @@ const {
     searchPosts
 } = require('../controllers/postController');
 const authMiddleware = require('../middleware/authMiddleware');
+const validateRequest = require('../middleware/validateRequest');
 
 // @route   POST /api/posts
-router.post('/', authMiddleware, createPost);
+router.post(
+  '/',
+  authMiddleware,
+  [body('text').notEmpty().withMessage('Text is required')],
+  validateRequest,
+  createPost
+);
 
 // @route   GET /api/posts
 router.get('/', getPosts);
@@ -28,7 +36,13 @@ router.get('/search', searchPosts);
 router.get('/:id', getPost);
 
 // @route   PUT /api/posts/:id
-router.put('/:id', authMiddleware, updatePost);
+router.put(
+  '/:id',
+  authMiddleware,
+  [body('text').optional().notEmpty().withMessage('Text cannot be empty')],
+  validateRequest,
+  updatePost
+);
 
 // @route   DELETE /api/posts/:id
 router.delete('/:id', authMiddleware, deletePost);
