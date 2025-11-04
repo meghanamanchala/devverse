@@ -1,7 +1,7 @@
 // User routes
 const express = require('express');
 const router = express.Router();
-const { getProfile, updateProfile, deleteProfile, followUser, unfollowUser } = require('../controllers/userController');
+const { getProfile, updateProfile, deleteProfile, followUser, unfollowUser, searchUsers } = require('../controllers/userController');
 const authMiddleware = require('../middleware/authMiddleware');
 
 // @route   GET /api/users/profile
@@ -18,5 +18,8 @@ router.post('/:id/follow', authMiddleware, followUser);
 
 // @route   POST /api/users/:id/unfollow
 router.post('/:id/unfollow', authMiddleware, unfollowUser);
+
+// @route   GET /api/users/search?q=term
+router.get('/search', searchUsers);
 
 module.exports = router;

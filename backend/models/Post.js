@@ -11,7 +11,8 @@ const postSchema = new mongoose.Schema({
   image: { type: String }, // Cloudinary URL
   author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-  comments: [commentSchema]
+  comments: [commentSchema],
+  tags: [{ type: String }]
 }, { timestamps: true });
 
 module.exports = mongoose.model('Post', postSchema);

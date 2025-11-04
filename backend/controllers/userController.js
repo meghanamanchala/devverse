@@ -82,3 +82,20 @@ exports.unfollowUser = async (req, res, next) => {
     next(err);
   }
 };
+
+// Search users by username or skills
+exports.searchUsers = async (req, res, next) => {
+  try {
+    const { q } = req.query;
+    if (!q) return res.json({ success: true, users: [] });
+    const users = await User.find({
+      $or: [
+        { username: { $regex: q, $options: 'i' } },
+        { skills: { $regex: q, $options: 'i' } }
+      ]
+    }).select('-password');
+    res.json({ success: true, users });
+  } catch (err) {
+    next(err);
+  }
+};
