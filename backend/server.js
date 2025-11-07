@@ -13,6 +13,7 @@ const helmet = require("helmet");
 const morgan = require("morgan");
 const path = require("path");
 const errorHandler = require("./middleware/errorHandler");
+const User = require("./models/User");
 
 // Route imports
 const authRoutes = require("./routes/authRoutes");
@@ -30,7 +31,7 @@ app.use(morgan("dev"));
 // CORS config
 const allowedOrigins = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(",")
-  : ["http://localhost:3000"];
+  : ["http://localhost:5173"];
 app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser());
