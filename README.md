@@ -14,7 +14,9 @@
 ### 🛠 Tech Stack
 
 **Frontend:** React, Redux Toolkit, TailwindCSS
+
 **Backend:** Node.js, Express, MongoDB, JWT, Socket.io
+
 **Deployment:** Vercel + Render + MongoDB Atlas
 
 ---
