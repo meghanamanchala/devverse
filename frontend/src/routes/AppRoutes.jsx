@@ -1,6 +1,7 @@
 import React from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import ClerkProtected from "../components/Auth/ClerkProtected";
+
 
 import Home from "../pages/Home";
 import Explore from "../pages/Explore";
@@ -8,28 +9,27 @@ import Notifications from "../pages/Notifications";
 import Messages from "../pages/Messages";
 import Saved from "../pages/Saved";
 import Network from "../pages/Network";
-import Profile from "../pages/Profile";
+import Posts from "../pages/Posts";
 import Settings from "../pages/Settings";
 import Signup from "../components/Auth/Signup";
+import AddPost from "../pages/AddPost";
 
 const AppRoutes = () => (
-  <BrowserRouter>
-    <Routes>
-      {/* Public */}
-      <Route path="/signup" element={<Signup />} />
+  <Routes>
+    {/* Public */}
+    <Route path="/signup" element={<Signup />} />
+    <Route path="/" element={<Home />} />
 
-      {/* Protected */}
-      <Route path="/" element={<ClerkProtected><Home /></ClerkProtected>} />
-      <Route path="/explore" element={<ClerkProtected><Explore /></ClerkProtected>} />
-      <Route path="/notifications" element={<ClerkProtected><Notifications /></ClerkProtected>} />
-      <Route path="/messages" element={<ClerkProtected><Messages /></ClerkProtected>} />
-      <Route path="/saved" element={<ClerkProtected><Saved /></ClerkProtected>} />
-      <Route path="/network" element={<ClerkProtected><Network /></ClerkProtected>} />
-      <Route path="/profile" element={<ClerkProtected><Profile /></ClerkProtected>} />
-      <Route path="/settings" element={<ClerkProtected><Settings /></ClerkProtected>} />
-    </Routes>
-  </BrowserRouter>
+    {/* Protected */}
+  <Route path="/add-post" element={<ClerkProtected><AddPost /></ClerkProtected>} />
+  <Route path="/explore" element={<ClerkProtected><Explore /></ClerkProtected>} />
+  <Route path="/notifications" element={<ClerkProtected><Notifications /></ClerkProtected>} />
+  <Route path="/messages" element={<ClerkProtected><Messages /></ClerkProtected>} />
+  <Route path="/saved" element={<ClerkProtected><Saved /></ClerkProtected>} />
+  <Route path="/network" element={<ClerkProtected><Network /></ClerkProtected>} />
+  <Route path="/posts" element={<ClerkProtected><Posts /></ClerkProtected>} />
+  <Route path="/settings" element={<ClerkProtected><Settings /></ClerkProtected>} />
+  </Routes>
 );
 
 export default AppRoutes;
-

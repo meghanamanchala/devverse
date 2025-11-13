@@ -1,65 +1,55 @@
-// Post routes
-const express = require('express');
-const { body } = require('express-validator');
+const express = require("express");
 const router = express.Router();
-const { 
-    createPost, 
-    getPosts, 
-    getPost, 
-    updatePost, 
-    deletePost, 
-    likePost, 
-    unlikePost, 
-    addComment, 
-    deleteComment, 
-    searchPosts
-} = require('../controllers/postController');
-const authMiddleware = require('../middleware/authMiddleware');
-const validateRequest = require('../middleware/validateRequest');
+const { body } = require("express-validator");
 
-// @route   POST /api/posts
+const {
+  createPost,
+  getPosts,
+  getPost,
+  updatePost,
+  deletePost,
+  likePost,
+  unlikePost,
+  addComment,
+  deleteComment,
+  searchPosts,
+} = require("../controllers/postController");
+
+const authMiddleware = require("../middleware/authMiddleware");
+const validateRequest = require("../middleware/validateRequest");
+const upload = require("../middleware/uploadMiddleware");
+
+// ✅ Order matters:
+// 1. Auth checks token (authMiddleware)
+// 2. Multer handles image (upload.single)
+// 3. Validation
+// 4. Controller
+
 router.post(
-  '/',
+  "/",
+  (req, res, next) => {
+    console.log("✅ Route hit: POST /api/posts");
+    next();
+  },
   authMiddleware,
-  [body('text').notEmpty().withMessage('Text is required')],
+  upload.single("image"),
+  (req, res, next) => {
+    console.log("✅ Multer finished. File:", req.file ? req.file.originalname : "No file");
+    next();
+  },
+  [body("text").notEmpty().withMessage("Text is required")],
   validateRequest,
   createPost
 );
 
-// @route   GET /api/posts
-router.get('/', getPosts);
-
-// @route   GET /api/posts/search?q=term
-router.get('/search', searchPosts);
-
-// @route   GET /api/posts/:id
-router.get('/:id', getPost);
-
-// @route   PUT /api/posts/:id
-router.put(
-  '/:id',
-  authMiddleware,
-  [body('text').optional().notEmpty().withMessage('Text cannot be empty')],
-  validateRequest,
-  updatePost
-);
-
-// @route   DELETE /api/posts/:id
-router.delete('/:id', authMiddleware, deletePost);
-
-// @route   POST /api/posts/:id/like
-router.post('/:id/like', authMiddleware, likePost);
-
-// @route   POST /api/posts/:id/unlike
-router.post('/:id/unlike', authMiddleware, unlikePost);
-
-// @route   POST /api/posts/:id/comments
-router.post('/:id/comments', authMiddleware, addComment);
-
-// @route   DELETE /api/posts/:id/comments/:commentId
-router.delete('/:id/comments/:commentId', authMiddleware, deleteComment);
-
-// @route   GET /api/posts/search?q=term
-router.get('/search', searchPosts);
+router.get("/", getPosts);
+router.get("/search", searchPosts);
+router.get("/:id", getPost);
+router.put("/:id", authMiddleware, upload.single("image"), updatePost);
+router.delete("/:id", authMiddleware, deletePost);
+router.post("/:id/like", authMiddleware, likePost);
+router.post("/:id/unlike", authMiddleware, unlikePost);
+router.post("/:id/comments", authMiddleware, addComment);
+router.delete("/:id/comments/:commentId", authMiddleware, deleteComment);
 
 module.exports = router;

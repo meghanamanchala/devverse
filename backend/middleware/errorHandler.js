@@ -1,5 +1,7 @@
 // Global error handler middleware
 function errorHandler(err, req, res, next) {
+// Add a global error log
+  console.log("🔥 GLOBAL ERROR HANDLER:", err);
   const statusCode = err.statusCode || 500;
   res.status(statusCode).json({
     success: false,
