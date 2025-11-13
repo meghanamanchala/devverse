@@ -1,4 +1,5 @@
 const Post = require("../models/Post");
+const User = require("../models/User");
 const cloudinary = require("../utils/cloudinary");
 
 const uploadToCloudinary = (fileBuffer) => {
@@ -55,11 +56,22 @@ exports.createPost = async (req, res) => {
 
 
 
-// ✅ Get all posts
+// ✅ Get all posts (with user info)
 exports.getPosts = async (req, res, next) => {
   try {
     const posts = await Post.find().sort({ createdAt: -1 });
-    res.json({ success: true, posts });
+    // Fetch user info for each post's author
+    const userIds = [...new Set(posts.map((p) => p.author))];
+    const users = await User.find({ clerkId: { $in: userIds } }).select("clerkId username name");
+    const userMap = {};
+    users.forEach((u) => {
+      userMap[u.clerkId] = { username: u.username, name: u.name };
+    });
+    const postsWithUser = posts.map((post) => ({
+      ...post.toObject(),
+      user: userMap[post.author] || null,
+    }));
+    res.json({ success: true, posts: postsWithUser });
   } catch (err) {
     next(err);
   }

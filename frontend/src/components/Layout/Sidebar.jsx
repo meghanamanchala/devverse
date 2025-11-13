@@ -66,9 +66,19 @@ const Sidebar = () => {
 
       {/* Sidebar */}
       <aside
-        className={`fixed lg:static top-0 left-0 h-screen w-64 bg-[#0d1424] border-r border-[#1a2b4a] shadow-xl transform transition-transform duration-300 ease-in-out flex flex-col z-30 ${
-          open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-        }`}
+        className={`
+          fixed top-0 left-0 h-screen w-64 bg-[#0d1424] border-r border-[#1a2b4a] shadow-xl transform transition-transform duration-300 ease-in-out flex flex-col z-30
+          ${open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
+          lg:sticky lg:top-0 lg:left-0 lg:h-[100vh] lg:w-64
+        `}
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          height: '100vh',
+          width: '16rem',
+          zIndex: 30,
+        }}
       >
         {/* Close button (mobile) */}
         {open && (
