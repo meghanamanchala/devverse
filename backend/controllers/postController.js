@@ -60,17 +60,26 @@ exports.createPost = async (req, res) => {
 exports.getPosts = async (req, res, next) => {
   try {
     const posts = await Post.find().sort({ createdAt: -1 });
-    // Fetch user info for each post's author
-    const userIds = [...new Set(posts.map((p) => p.author))];
-    const users = await User.find({ clerkId: { $in: userIds } }).select("clerkId username name");
+    // Collect all user IDs (authors + commenters)
+    const authorIds = posts.map((p) => p.author);
+    const commentUserIds = posts.flatMap((p) => p.comments.map((c) => c.user));
+    const allUserIds = [...new Set([...authorIds, ...commentUserIds])];
+    const users = await User.find({ clerkId: { $in: allUserIds } }).select("clerkId username name");
     const userMap = {};
     users.forEach((u) => {
       userMap[u.clerkId] = { username: u.username, name: u.name };
     });
-    const postsWithUser = posts.map((post) => ({
-      ...post.toObject(),
-      user: userMap[post.author] || null,
-    }));
+    const postsWithUser = posts.map((post) => {
+      const postObj = post.toObject();
+      // Attach user info to post author
+      postObj.user = userMap[post.author] || null;
+      // Attach user info to each comment
+      postObj.comments = postObj.comments.map((c) => ({
+        ...c,
+        userInfo: userMap[c.user] || null
+      }));
+      return postObj;
+    });
     res.json({ success: true, posts: postsWithUser });
   } catch (err) {
     next(err);
@@ -194,23 +203,38 @@ exports.addComment = async (req, res, next) => {
 // ✅ Delete Comment
 exports.deleteComment = async (req, res, next) => {
   try {
-    const post = await Post.findById(req.params.id);
+    console.log("[deleteComment] postId:", req.params.id);
+    console.log("[deleteComment] commentId:", req.params.commentId);
+    console.log("[deleteComment] userId:", req.user && req.user.id);
 
-    if (!post)
+    const post = await Post.findById(req.params.id);
+    if (!post) {
+      console.log("[deleteComment] Post not found");
       return res.status(404).json({ success: false, message: "Post not found" });
+    }
+
+    console.log("[deleteComment] post.comments:", post.comments.map(c => ({ _id: c._id, user: c.user, text: c.text })));
 
     const comment = post.comments.id(req.params.commentId);
-
-    if (!comment)
+    if (!comment) {
+      console.log("[deleteComment] Comment not found");
       return res.status(404).json({ success: false, message: "Comment not found" });
+    }
 
-    if (comment.user.toString() !== req.user.id && post.author.toString() !== req.user.id)
+    console.log("[deleteComment] found comment:", { _id: comment._id, user: comment.user, text: comment.text });
+
+    if (comment.user.toString() !== req.user.id && post.author.toString() !== req.user.id) {
+      console.log("[deleteComment] Not authorized. comment.user:", comment.user, "post.author:", post.author, "req.user.id:", req.user.id);
       return res.status(403).json({ success: false, message: "Not authorized" });
+    }
 
-    comment.remove();
-    await post.save();
-    res.json({ success: true, comments: post.comments });
+  // Remove the comment using array filter (fixes TypeError)
+  post.comments = post.comments.filter(c => c._id.toString() !== req.params.commentId);
+  await post.save();
+  console.log("[deleteComment] Comment removed and post saved.");
+  res.json({ success: true, comments: post.comments });
   } catch (err) {
+    console.log("[deleteComment] ERROR:", err);
     next(err);
   }
 };

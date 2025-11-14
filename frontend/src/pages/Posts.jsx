@@ -63,6 +63,22 @@ const Posts = () => {
     }
   };
 
+  // Delete comment
+  const handleDeleteComment = async (postId, commentId) => {
+    if (!isSignedIn || !user) return;
+    try {
+      const jwt = await getToken();
+      await api.delete(`/posts/${postId}/comments/${commentId}`, {
+        headers: { Authorization: `Bearer ${jwt}` },
+      });
+      // Refetch posts to update comments
+      const res = await api.get("/posts");
+      setPosts(Array.isArray(res.data.posts) ? res.data.posts : []);
+    } catch (err) {
+      // Optionally show error
+    }
+  };
+
   const handleToggleComments = (postId) => {
     setShowComments((prev) => ({ ...prev, [postId]: !prev[postId] }));
   };
@@ -193,9 +209,9 @@ const Posts = () => {
                   <div className="mt-2 flex items-center gap-4 border-t border-[#3b5b9a]/10 pt-2 text-[#b3cdf6] text-[14px]">
                     <button
                       className="flex items-center gap-1 hover:text-pink-400 transition"
-                      onClick={() => handleLike(post._id, post.likes?.includes?.(post.user?.clerkId || ""))}
+                      onClick={() => handleLike(post._id, post.likes?.includes?.(user?.id || ""))}
                     >
-                      {post.likes?.includes?.(post.user?.clerkId || "") ? <FaHeart /> : <FaRegHeart />}
+                      {post.likes?.includes?.(user?.id || "") ? <FaHeart /> : <FaRegHeart />}
                       <span className="ml-1">{post.likes?.length || 0}</span>
                     </button>
                     <button
@@ -224,8 +240,22 @@ const Posts = () => {
                       {post.comments?.length > 0 ? (
                         <ul className="space-y-1 max-h-24 overflow-auto pr-1">
                           {post.comments.map((c, idx) => (
-                            <li key={idx} className="text-gray-300 text-xs border-b border-[#3b5b9a]/10 pb-0.5">
-                              <span className="font-medium text-[#b3cdf6]">{c.user?.username || "User"}:</span> {c.text}
+                            <li key={c._id || idx} className="text-gray-300 text-xs border-b border-[#3b5b9a]/10 pb-0.5 flex items-center justify-between">
+                              <span>
+                                <span className="font-medium text-[#b3cdf6]">
+                                  {c.userInfo?.username || "User"}
+                                </span>: {c.text}
+                              </span>
+                              {/* Show delete button if user is comment author or post author */}
+                              {(user && (c.user === user.id || post.author === user.id || c.user === user.primaryEmailAddress?.id)) && (
+                                <button
+                                  className="ml-2 text-xs text-red-400 hover:text-red-600"
+                                  title="Delete comment"
+                                  onClick={() => handleDeleteComment(post._id, c._id)}
+                                >
+                                  Delete
+                                </button>
+                              )}
                             </li>
                           ))}
                         </ul>
