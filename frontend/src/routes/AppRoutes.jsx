@@ -9,7 +9,7 @@ import Notifications from "../pages/Notifications";
 import Messages from "../pages/Messages";
 import Saved from "../pages/Saved";
 import Network from "../pages/Network";
-import Posts from "../pages/Posts";
+
 import Settings from "../pages/Settings";
 import Signup from "../components/Auth/Signup";
 import AddPost from "../pages/AddPost";
@@ -28,7 +28,8 @@ const AppRoutes = () => (
   <Route path="/messages" element={<ClerkProtected><Messages /></ClerkProtected>} />
   <Route path="/saved" element={<ClerkProtected><Saved /></ClerkProtected>} />
   <Route path="/network" element={<ClerkProtected><Network /></ClerkProtected>} />
-  <Route path="/posts" element={<ClerkProtected><Posts /></ClerkProtected>} />
+  {/* /posts now redirects to Home for backward compatibility */}
+  <Route path="/posts" element={<Home />} />
   <Route path="/settings" element={<ClerkProtected><Settings /></ClerkProtected>} />
   <Route path="/profile" element={<ClerkProtected><Profile /></ClerkProtected>} />
   </Routes>
