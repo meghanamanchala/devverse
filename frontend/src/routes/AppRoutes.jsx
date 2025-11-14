@@ -13,6 +13,7 @@ import Posts from "../pages/Posts";
 import Settings from "../pages/Settings";
 import Signup from "../components/Auth/Signup";
 import AddPost from "../pages/AddPost";
+import Profile from "../pages/Profile";
 
 const AppRoutes = () => (
   <Routes>
@@ -29,6 +30,7 @@ const AppRoutes = () => (
   <Route path="/network" element={<ClerkProtected><Network /></ClerkProtected>} />
   <Route path="/posts" element={<ClerkProtected><Posts /></ClerkProtected>} />
   <Route path="/settings" element={<ClerkProtected><Settings /></ClerkProtected>} />
+  <Route path="/profile" element={<ClerkProtected><Profile /></ClerkProtected>} />
   </Routes>
 );
 

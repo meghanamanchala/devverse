@@ -21,13 +21,13 @@ import { useNavigate } from "react-router-dom";
 
 const navItems = [
   { href: "/", label: "Home", icon: <Home size={20} /> },
-  { href: "/add-post", label: "Add Post", icon: <PlusSquare size={20} /> },
   { href: "/explore", label: "Explore", icon: <Search size={20} /> },
   { href: "/network", label: "Network", icon: <Users size={20} /> },
   { href: "/messages", label: "Messages", icon: <MessageCircle size={20} /> },
   { href: "/notifications", label: "Notifications", icon: <Bell size={20} /> },
   { href: "/saved", label: "Saved", icon: <Bookmark size={20} /> },
   { href: "/posts", label: "Posts", icon: <User size={20} /> },
+  // { href: "/profile", label: "Profile", icon: <User size={20} /> },
   { href: "/settings", label: "Settings", icon: <Settings size={20} /> },
 ];
 
