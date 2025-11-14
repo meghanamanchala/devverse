@@ -1,9 +1,9 @@
-
+// api.js
 import axios from "axios";
 
 const api = axios.create({
-	baseURL: "http://localhost:5000/api", // Change to your backend URL if needed
-	withCredentials: true,
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000/api", // use env var in prod
+  withCredentials: true,
 });
 
 export default api;
