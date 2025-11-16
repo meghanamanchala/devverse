@@ -26,8 +26,7 @@ const navItems = [
   { href: "/messages", label: "Messages", icon: <MessageCircle size={20} /> },
   { href: "/notifications", label: "Notifications", icon: <Bell size={20} /> },
   { href: "/saved", label: "Saved", icon: <Bookmark size={20} /> },
-  { href: "/posts", label: "Posts", icon: <User size={20} /> },
-  // { href: "/profile", label: "Profile", icon: <User size={20} /> },
+  { href: "/profile", label: "Profile", icon: <User size={20} /> },
   { href: "/settings", label: "Settings", icon: <Settings size={20} /> },
 ];
 
