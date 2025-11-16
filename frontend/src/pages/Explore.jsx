@@ -1,145 +1,8 @@
-
-
-
-
 import React, { useEffect, useState } from "react";
 import { useUser, useAuth } from "@clerk/clerk-react";
 import api from "../app/api";
 import { formatDate } from "../utils/formatDate";
-import { FaUserCircle, FaRegComment, FaRegBookmark, FaBookmark, FaShareAlt } from "react-icons/fa";
-
-// Minimal Avatar and Tag for reuse (copied from Home)
-const Avatar = ({ src, alt, size = 8 }) => (
-  src ? (
-    <img
-      src={src}
-      alt={alt || "avatar"}
-      onError={(e) => {
-        e.currentTarget.onerror = null;
-        e.currentTarget.src = "";
-      }}
-      className={`w-${size} h-${size} rounded-full object-cover border border-[#23385c]`}
-      loading="lazy"
-    />
-  ) : (
-    <div className={`w-${size} h-${size} rounded-full bg-[#16223a] flex items-center justify-center text-gray-400 border border-[#23385c]`}>
-      <FaUserCircle className="w-6 h-6" />
-    </div>
-  )
-);
-const Tag = ({ children }) => (
-  <span className="text-xs px-2 py-0.5 rounded-full bg-[#122033] text-[#9fc1ff] border border-[#23385c]/40 mr-1 mb-1 inline-block">#{children}</span>
-);
-
-// PostCard for trending posts (with like, comment, share, save)
-const PostCard = ({ post, user, onLike, liked, onAddComment, commentValue, commentLoading, onToggleComments, showComments, onDeleteComment }) => {
-  const [expanded, setExpanded] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const shortText = post.text?.length > 240 ? post.text.slice(0, 240) + "…" : post.text;
-
-  const handleShare = async () => {
-    const txt = post.text || "";
-    if (navigator?.clipboard) {
-      try {
-        await navigator.clipboard.writeText(txt);
-        // Optionally show a toast
-      } catch {}
-    }
-  };
-
-  const handleSave = () => setSaved((s) => !s);
-
-  return (
-    <article className="relative rounded-lg p-4 bg-[#081224] border border-[#17314d] shadow-sm mb-4">
-      <div className="flex gap-3">
-        <div className="flex-shrink-0">
-          <Avatar src={post.user?.avatar} alt={post.user?.username || "avatar"} size={8} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="text-[#cbe0ff] font-medium text-sm truncate">{post.user?.username || "Anonymous"}</span>
-            <time className="text-xs text-gray-400 ml-1" dateTime={post.createdAt}>{formatDate(post.createdAt)}</time>
-          </div>
-          {post.text && (
-            <div className="text-gray-200 text-sm mt-2 break-words">
-              <p className="relative">
-                {expanded ? post.text : shortText}
-                {post.text?.length > 240 && (
-                  <button onClick={() => setExpanded((s) => !s)} className="ml-2 text-xs text-[#9fc1ff] underline">
-                    {expanded ? "Show less" : "Read more"}
-                  </button>
-                )}
-              </p>
-            </div>
-          )}
-          {post.image && (
-            <div className="mt-3">
-              <img src={post.image} alt={post.text?.slice(0, 60) || "post image"} className="w-full max-w-xl rounded-md object-cover border border-[#23385c]/25 cursor-pointer" />
-            </div>
-          )}
-          {post.tags?.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-2">
-              {post.tags.map((t, i) => (<Tag key={i}>{t}</Tag>))}
-            </div>
-          )}
-          <div className="mt-3 flex items-center gap-4 border-t border-[#17314d] pt-3 text-sm text-[#9fc1ff]">
-            <button onClick={() => onLike(post._id, liked)} className="flex items-center gap-2" aria-pressed={!!liked}>
-              {liked ? <svg width="16" height="16" fill="currentColor" className="inline text-pink-400"><path d="M8 14s6-4.35 6-7.5A3.5 3.5 0 0 0 8 3a3.5 3.5 0 0 0-6 3.5C2 9.65 8 14 8 14z"/></svg> : <svg width="16" height="16" fill="currentColor" className="inline"><path d="M8 14s6-4.35 6-7.5A3.5 3.5 0 0 0 8 3a3.5 3.5 0 0 0-6 3.5C2 9.65 8 14 8 14z"/></svg>} <span>{post.likes?.length || 0}</span>
-            </button>
-            <button onClick={() => onToggleComments(post._id)} className="flex items-center gap-2">
-              <FaRegComment className="inline w-4 h-4" /> <span>{post.comments?.length || 0}</span>
-            </button>
-            <button onClick={handleShare} title="Share" className="p-1.5 rounded hover:bg-[#1b2a49]">
-              <FaShareAlt className="w-4 h-4" />
-            </button>
-            <button onClick={handleSave} title="Save" className="p-1.5 rounded hover:bg-[#1b2a49] ml-auto">
-              {saved ? <FaBookmark className="w-4 h-4" /> : <FaRegBookmark className="w-4 h-4" />}
-            </button>
-          </div>
-          {showComments && (
-            <div className="mt-3 bg-[#061a2a] border border-[#23385c]/20 rounded-md p-3">
-              <div className="font-semibold text-sm text-[#cbe0ff] mb-2">Comments</div>
-              {post.comments?.length > 0 ? (
-                <ul className="space-y-2 max-h-36 overflow-auto pr-1 text-sm text-gray-200">
-                  {post.comments.map((c) => (
-                    <li key={c._id} className="flex items-start justify-between">
-                      <div>
-                        <div className="text-xs text-[#b9d9ff] font-medium">{c.userInfo?.username || "User"}</div>
-                        <div className="text-xs text-gray-200">{c.text}</div>
-                      </div>
-                      {/* Comment author OR post author (admin) can delete comment */}
-                      {user && (c.user === user.id || post.author === user.id) && (
-                        <button onClick={() => onDeleteComment(post._id, c._id)} className="text-xs text-red-400">Delete</button>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <div className="text-xs text-gray-400">No comments yet.</div>
-              )}
-              <div className="mt-3 flex items-center gap-2">
-                <input
-                  type="text"
-                  className="flex-1 rounded bg-[#081625] border border-[#17314d] px-2 py-1 text-sm text-gray-100"
-                  placeholder="Add a comment..."
-                  value={commentValue}
-                  onChange={e => onAddComment('input', post._id, e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      onAddComment('submit', post._id);
-                    }
-                  }}
-                />
-                <button onClick={() => onAddComment('submit', post._id)} className="px-3 py-1 rounded bg-[#2d67b8] text-white text-sm">{commentLoading ? '...' : 'Post'}</button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </article>
-  );
-};
+import PostCard from "../components/Shared/PostCard";
 
 
 const Explore = () => {
@@ -360,6 +223,9 @@ const Explore = () => {
                     onToggleComments={handleToggleComments}
                     showComments={!!showComments[post._id]}
                     onDeleteComment={handleDeleteComment}
+                    onShare={() => {}}
+                    saved={false}
+                    onSave={() => {}}
                   />
                 );
               })}
