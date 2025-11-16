@@ -1,226 +1,113 @@
-
-
-
-
 import React, { useEffect, useState } from "react";
 import { useUser, useAuth } from "@clerk/clerk-react";
 import api from "../app/api";
 import { formatDate } from "../utils/formatDate";
-import { FaUserCircle, FaRegComment, FaRegBookmark, FaBookmark, FaShareAlt } from "react-icons/fa";
+import PostCard from "../components/Shared/PostCard";
 
-// Minimal Avatar and Tag for reuse (copied from Home)
-const Avatar = ({ src, alt, size = 8 }) => (
-  src ? (
-    <img
-      src={src}
-      alt={alt || "avatar"}
-      onError={(e) => {
-        e.currentTarget.onerror = null;
-        e.currentTarget.src = "";
-      }}
-      className={`w-${size} h-${size} rounded-full object-cover border border-[#23385c]`}
-      loading="lazy"
-    />
-  ) : (
-    <div className={`w-${size} h-${size} rounded-full bg-[#16223a] flex items-center justify-center text-gray-400 border border-[#23385c]`}>
-      <FaUserCircle className="w-6 h-6" />
-    </div>
-  )
-);
-const Tag = ({ children }) => (
-  <span className="text-xs px-2 py-0.5 rounded-full bg-[#122033] text-[#9fc1ff] border border-[#23385c]/40 mr-1 mb-1 inline-block">#{children}</span>
-);
-
-// PostCard for trending posts (with like, comment, share, save)
-const PostCard = ({ post, user, onLike, liked, onAddComment, commentValue, commentLoading, onToggleComments, showComments, onDeleteComment }) => {
-  const [expanded, setExpanded] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const shortText = post.text?.length > 240 ? post.text.slice(0, 240) + "…" : post.text;
-
-  const handleShare = async () => {
-    const txt = post.text || "";
-    if (navigator?.clipboard) {
-      try {
-        await navigator.clipboard.writeText(txt);
-        // Optionally show a toast
-      } catch {}
-    }
-  };
-
-  const handleSave = () => setSaved((s) => !s);
-
-  return (
-    <article className="relative rounded-lg p-4 bg-[#081224] border border-[#17314d] shadow-sm mb-4">
-      <div className="flex gap-3">
-        <div className="flex-shrink-0">
-          <Avatar src={post.user?.avatar} alt={post.user?.username || "avatar"} size={8} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="text-[#cbe0ff] font-medium text-sm truncate">{post.user?.username || "Anonymous"}</span>
-            <time className="text-xs text-gray-400 ml-1" dateTime={post.createdAt}>{formatDate(post.createdAt)}</time>
-          </div>
-          {post.text && (
-            <div className="text-gray-200 text-sm mt-2 break-words">
-              <p className="relative">
-                {expanded ? post.text : shortText}
-                {post.text?.length > 240 && (
-                  <button onClick={() => setExpanded((s) => !s)} className="ml-2 text-xs text-[#9fc1ff] underline">
-                    {expanded ? "Show less" : "Read more"}
-                  </button>
-                )}
-              </p>
-            </div>
-          )}
-          {post.image && (
-            <div className="mt-3">
-              <img src={post.image} alt={post.text?.slice(0, 60) || "post image"} className="w-full max-w-xl rounded-md object-cover border border-[#23385c]/25 cursor-pointer" />
-            </div>
-          )}
-          {post.tags?.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-2">
-              {post.tags.map((t, i) => (<Tag key={i}>{t}</Tag>))}
-            </div>
-          )}
-          <div className="mt-3 flex items-center gap-4 border-t border-[#17314d] pt-3 text-sm text-[#9fc1ff]">
-            <button onClick={() => onLike(post._id, liked)} className="flex items-center gap-2" aria-pressed={!!liked}>
-              {liked ? <svg width="16" height="16" fill="currentColor" className="inline text-pink-400"><path d="M8 14s6-4.35 6-7.5A3.5 3.5 0 0 0 8 3a3.5 3.5 0 0 0-6 3.5C2 9.65 8 14 8 14z"/></svg> : <svg width="16" height="16" fill="currentColor" className="inline"><path d="M8 14s6-4.35 6-7.5A3.5 3.5 0 0 0 8 3a3.5 3.5 0 0 0-6 3.5C2 9.65 8 14 8 14z"/></svg>} <span>{post.likes?.length || 0}</span>
-            </button>
-            <button onClick={() => onToggleComments(post._id)} className="flex items-center gap-2">
-              <FaRegComment className="inline w-4 h-4" /> <span>{post.comments?.length || 0}</span>
-            </button>
-            <button onClick={handleShare} title="Share" className="p-1.5 rounded hover:bg-[#1b2a49]">
-              <FaShareAlt className="w-4 h-4" />
-            </button>
-            <button onClick={handleSave} title="Save" className="p-1.5 rounded hover:bg-[#1b2a49] ml-auto">
-              {saved ? <FaBookmark className="w-4 h-4" /> : <FaRegBookmark className="w-4 h-4" />}
-            </button>
-          </div>
-          {showComments && (
-            <div className="mt-3 bg-[#061a2a] border border-[#23385c]/20 rounded-md p-3">
-              <div className="font-semibold text-sm text-[#cbe0ff] mb-2">Comments</div>
-              {post.comments?.length > 0 ? (
-                <ul className="space-y-2 max-h-36 overflow-auto pr-1 text-sm text-gray-200">
-                  {post.comments.map((c) => (
-                    <li key={c._id} className="flex items-start justify-between">
-                      <div>
-                        <div className="text-xs text-[#b9d9ff] font-medium">{c.userInfo?.username || "User"}</div>
-                        <div className="text-xs text-gray-200">{c.text}</div>
-                      </div>
-                      {/* Comment author OR post author (admin) can delete comment */}
-                      {user && (c.user === user.id || post.author === user.id) && (
-                        <button onClick={() => onDeleteComment(post._id, c._id)} className="text-xs text-red-400">Delete</button>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <div className="text-xs text-gray-400">No comments yet.</div>
-              )}
-              <div className="mt-3 flex items-center gap-2">
-                <input
-                  type="text"
-                  className="flex-1 rounded bg-[#081625] border border-[#17314d] px-2 py-1 text-sm text-gray-100"
-                  placeholder="Add a comment..."
-                  value={commentValue}
-                  onChange={e => onAddComment('input', post._id, e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      onAddComment('submit', post._id);
-                    }
-                  }}
-                />
-                <button onClick={() => onAddComment('submit', post._id)} className="px-3 py-1 rounded bg-[#2d67b8] text-white text-sm">{commentLoading ? '...' : 'Post'}</button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </article>
-  );
-};
 
 const Explore = () => {
-    const [toasts, setToasts] = useState([]);
-    const addToast = (text, life = 3500) => {
-      const id = Date.now() + Math.random();
-      setToasts((t) => [...t, { id, text }]);
-      setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), life);
-    };
-    const handleDeleteComment = async (postId, commentId) => {
-      if (!isSignedIn || !user) return addToast("Sign in to delete comments.");
-      try {
-        const jwt = await getToken();
-        await api.delete(`/posts/${postId}/comments/${commentId}`, { headers: { Authorization: `Bearer ${jwt}` } });
-        addToast("Comment deleted");
-        // Refresh posts
-        const res = await api.get("/posts");
-        const posts = Array.isArray(res.data.posts) ? res.data.posts : [];
-        const sortedPosts = [...posts].sort((a, b) => {
-          const likesA = a.likes?.length || 0;
-          const likesB = b.likes?.length || 0;
-          if (likesB !== likesA) return likesB - likesA;
-          const commentsA = a.comments?.length || 0;
-          const commentsB = b.comments?.length || 0;
-          if (commentsB !== commentsA) return commentsB - commentsA;
-          return new Date(b.createdAt) - new Date(a.createdAt);
-        });
-        setTrendingPosts(sortedPosts.slice(0, 10));
-      } catch (err) {
-        addToast("Unable to delete comment.");
-      }
-    };
+  const [toasts, setToasts] = useState([]);
+  const addToast = (text, life = 3500) => {
+    const id = Date.now() + Math.random();
+    setToasts((t) => [...t, { id, text }]);
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), life);
+  };
+  const handleDeleteComment = async (postId, commentId) => {
+    if (!isSignedIn || !user) return addToast("Sign in to delete comments.");
+    try {
+      const jwt = await getToken();
+      await api.delete(`/posts/${postId}/comments/${commentId}`, { headers: { Authorization: `Bearer ${jwt}` } });
+      addToast("Comment deleted");
+      // Refresh posts
+      await fetchPostsAndTags();
+    } catch (err) {
+      addToast("Unable to delete comment.");
+    }
+  };
   const [trending, setTrending] = useState([]);
-  const [trendingPosts, setTrendingPosts] = useState([]);
+  const [allPosts, setAllPosts] = useState([]);
+  const [displayedPosts, setDisplayedPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [likeState, setLikeState] = useState({});
   const [showComments, setShowComments] = useState({});
   const [commentInputs, setCommentInputs] = useState({});
   const [commentLoading, setCommentLoading] = useState({});
+  const [postMode, setPostMode] = useState("trending"); // trending | popular | recent
+  const [search, setSearch] = useState("");
+  const [activeTag, setActiveTag] = useState("");
   const { user, isSignedIn } = useUser();
   const { getToken } = useAuth();
 
+  // Fetch posts and tags
+  const fetchPostsAndTags = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get("/posts");
+      const posts = Array.isArray(res.data.posts) ? res.data.posts : [];
+      setAllPosts(posts);
+      // Trending tags
+      const tagCounts = {};
+      posts.forEach((post) => {
+        (post.tags || []).forEach((tag) => {
+          const t = tag.trim();
+          if (t) tagCounts[t] = (tagCounts[t] || 0) + 1;
+        });
+      });
+      const sortedTags = Object.entries(tagCounts)
+        .sort((a, b) => b[1] - a[1])
+        .map(([tag, count]) => ({ tag, count }));
+      setTrending(sortedTags);
+      setError(null);
+    } catch (err) {
+      setError("Failed to load trending data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchTrending = async () => {
-      setLoading(true);
-      try {
-        // Fetch all posts
-        const res = await api.get("/posts");
-        const posts = Array.isArray(res.data.posts) ? res.data.posts : [];
-        // Trending tags
-        const tagCounts = {};
-        posts.forEach((post) => {
-          (post.tags || []).forEach((tag) => {
-            const t = tag.trim();
-            if (t) tagCounts[t] = (tagCounts[t] || 0) + 1;
-          });
-        });
-        const sortedTags = Object.entries(tagCounts)
-          .sort((a, b) => b[1] - a[1])
-          .map(([tag, count]) => ({ tag, count }));
-        setTrending(sortedTags);
-        // Trending posts: sort by likes desc, then comments desc, then createdAt desc
-        const sortedPosts = [...posts].sort((a, b) => {
-          const likesA = a.likes?.length || 0;
-          const likesB = b.likes?.length || 0;
-          if (likesB !== likesA) return likesB - likesA;
-          const commentsA = a.comments?.length || 0;
-          const commentsB = b.comments?.length || 0;
-          if (commentsB !== commentsA) return commentsB - commentsA;
-          return new Date(b.createdAt) - new Date(a.createdAt);
-        });
-        setTrendingPosts(sortedPosts.slice(0, 10)); // Top 10 trending posts
-        setError(null);
-      } catch (err) {
-        setError("Failed to load trending data");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchTrending();
+    fetchPostsAndTags();
   }, []);
+
+  // Filter and sort posts based on mode, search, and tag
+  useEffect(() => {
+    let posts = [...allPosts];
+    // Tag filter
+    if (activeTag) {
+      posts = posts.filter((p) => (p.tags || []).map(t => t.toLowerCase()).includes(activeTag.toLowerCase()));
+    }
+    // Search filter
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      posts = posts.filter((p) =>
+        (p.text && p.text.toLowerCase().includes(q)) ||
+        (p.user?.username && p.user.username.toLowerCase().includes(q)) ||
+        (p.tags && p.tags.some(t => t.toLowerCase().includes(q)))
+      );
+    }
+    // Sort
+    if (postMode === "trending") {
+      posts.sort((a, b) => {
+        const likesA = a.likes?.length || 0;
+        const likesB = b.likes?.length || 0;
+        if (likesB !== likesA) return likesB - likesA;
+        const commentsA = a.comments?.length || 0;
+        const commentsB = b.comments?.length || 0;
+        if (commentsB !== commentsA) return commentsB - commentsA;
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      });
+    } else if (postMode === "popular") {
+      posts.sort((a, b) => {
+        const scoreA = (a.likes?.length || 0) + (a.comments?.length || 0);
+        const scoreB = (b.likes?.length || 0) + (b.comments?.length || 0);
+        return scoreB - scoreA;
+      });
+    } else if (postMode === "recent") {
+      posts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    }
+    setDisplayedPosts(posts.slice(0, 10));
+  }, [allPosts, postMode, search, activeTag]);
 
   const handleLike = async (postId, liked) => {
     if (!isSignedIn || !user) return;
@@ -229,7 +116,8 @@ const Explore = () => {
       if (!liked) await api.post(`/posts/${postId}/like`, {}, { headers: { Authorization: `Bearer ${jwt}` } });
       else await api.post(`/posts/${postId}/unlike`, {}, { headers: { Authorization: `Bearer ${jwt}` } });
       setLikeState((p) => ({ ...p, [postId]: !liked }));
-      setTrendingPosts((prev) => prev.map((p) => (p._id === postId ? { ...p, likes: liked ? p.likes.filter((id) => id !== user.id) : [...(p.likes || []), user.id] } : p)));
+      // Refresh posts
+      await fetchPostsAndTags();
     } catch (err) {
       // Optionally show error
     }
@@ -251,18 +139,7 @@ const Explore = () => {
       await api.post(`/posts/${postId}/comments`, { text: val }, { headers: { Authorization: `Bearer ${jwt}` } });
       setCommentInputs((p) => ({ ...p, [postId]: "" }));
       // Refresh posts
-      const res = await api.get("/posts");
-      const posts = Array.isArray(res.data.posts) ? res.data.posts : [];
-      const sortedPosts = [...posts].sort((a, b) => {
-        const likesA = a.likes?.length || 0;
-        const likesB = b.likes?.length || 0;
-        if (likesB !== likesA) return likesB - likesA;
-        const commentsA = a.comments?.length || 0;
-        const commentsB = b.comments?.length || 0;
-        if (commentsB !== commentsA) return commentsB - commentsA;
-        return new Date(b.createdAt) - new Date(a.createdAt);
-      });
-      setTrendingPosts(sortedPosts.slice(0, 10));
+      await fetchPostsAndTags();
     } catch (err) {
       // Optionally show error
     } finally {
@@ -284,10 +161,10 @@ const Explore = () => {
             <div className="text-gray-400">No trending tags yet.</div>
           ) : (
             <div className="divide-y divide-[#1a2b4a]">
-              {trending.slice(0, 3).map((t) => (
-                <div key={t.tag} className="flex items-center justify-between py-3">
+              {trending.slice(0, 8).map((t) => (
+                <div key={t.tag} className="flex items-center justify-between py-3 cursor-pointer group" onClick={() => setActiveTag(t.tag)}>
                   <div className="flex items-center gap-2">
-                    <span className="text-[#9fc1ff] font-medium text-base">#{t.tag}</span>
+                    <span className={`text-[#9fc1ff] font-medium text-base group-hover:underline ${activeTag === t.tag ? 'underline' : ''}`}>#{t.tag}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-gray-400">{t.count} posts</span>
@@ -296,21 +173,42 @@ const Explore = () => {
                   </div>
                 </div>
               ))}
+              {activeTag && (
+                <div className="mt-2 text-xs text-blue-300 cursor-pointer underline" onClick={() => setActiveTag("")}>Clear tag filter</div>
+              )}
             </div>
           )}
         </div>
-        {/* Trending Posts */}
+        {/* Search and Post Mode Toggle */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
+          <input
+            type="text"
+            className="flex-1 rounded bg-[#081625] border border-[#17314d] px-3 py-2 text-sm text-gray-100"
+            placeholder="Search posts, users, or tags..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+          <div className="flex gap-2 mt-2 sm:mt-0">
+            <button onClick={() => setPostMode("trending")}
+              className={`px-3 py-1 rounded ${postMode === 'trending' ? 'bg-[#2d67b8] text-white' : 'bg-[#081625] text-gray-300'} border border-[#17314d]`}>Trending</button>
+            <button onClick={() => setPostMode("popular")}
+              className={`px-3 py-1 rounded ${postMode === 'popular' ? 'bg-[#2d67b8] text-white' : 'bg-[#081625] text-gray-300'} border border-[#17314d]`}>Popular</button>
+            <button onClick={() => setPostMode("recent")}
+              className={`px-3 py-1 rounded ${postMode === 'recent' ? 'bg-[#2d67b8] text-white' : 'bg-[#081625] text-gray-300'} border border-[#17314d]`}>Recent</button>
+          </div>
+        </div>
+        {/* Posts */}
         <div>
-          <h3 className="text-lg font-semibold mb-4">Trending Posts</h3>
+          <h3 className="text-lg font-semibold mb-4">{postMode.charAt(0).toUpperCase() + postMode.slice(1)} Posts{activeTag && ` — #${activeTag}`}</h3>
           {loading ? (
             <div className="text-gray-400">Loading...</div>
           ) : error ? (
             <div className="text-red-400">{error}</div>
-          ) : trendingPosts.length === 0 ? (
-            <div className="text-gray-400">No trending posts yet.</div>
+          ) : displayedPosts.length === 0 ? (
+            <div className="text-gray-400">No posts found.</div>
           ) : (
             <div>
-              {trendingPosts.map((post) => {
+              {displayedPosts.map((post) => {
                 const liked = post.likes?.includes?.(user?.id || "");
                 return (
                   <PostCard
@@ -325,15 +223,18 @@ const Explore = () => {
                     onToggleComments={handleToggleComments}
                     showComments={!!showComments[post._id]}
                     onDeleteComment={handleDeleteComment}
+                    onShare={() => {}}
+                    saved={false}
+                    onSave={() => {}}
                   />
                 );
               })}
-                  {/* Toasts */}
-                  <div className="fixed right-4 bottom-6 z-50 flex flex-col gap-2">
-                    {toasts.map((t) => (
-                      <div key={t.id} className="bg-[#081829] border border-[#17314d] text-white px-4 py-2 rounded shadow">{t.text}</div>
-                    ))}
-                  </div>
+              {/* Toasts */}
+              <div className="fixed right-4 bottom-6 z-50 flex flex-col gap-2">
+                {toasts.map((t) => (
+                  <div key={t.id} className="bg-[#081829] border border-[#17314d] text-white px-4 py-2 rounded shadow">{t.text}</div>
+                ))}
+              </div>
             </div>
           )}
         </div>

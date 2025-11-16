@@ -152,10 +152,21 @@ const Composer = ({ user, isSignedIn, onPost, uploading, initialImagePreview }) 
 // Single Post card — presentational logic separated for readability
 const PostCard = ({ post, user, liked, onLike, onToggleComments, showComments, onShare, saved, onSave, onDeleteComment, onAddComment, commentState }) => {
   const [expanded, setExpanded] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
   const shortText = post.text?.length > 240 ? post.text.slice(0, 240) + "…" : post.text;
 
+  // Close menu on click outside
+  useEffect(() => {
+    if (!showMenu) return;
+    const handler = (e) => {
+      if (!e.target.closest(`#home-post-menu-${post._id}`)) setShowMenu(false);
+    };
+    window.addEventListener('mousedown', handler);
+    return () => window.removeEventListener('mousedown', handler);
+  }, [showMenu, post._id]);
+
   return (
-  <article className="relative rounded-lg p-4 bg-[#081224] border border-[#17314d] shadow-sm hover:shadow-md transition-shadow">
+    <article className="relative rounded-lg p-4 bg-[#081224] border border-[#17314d] shadow-sm hover:shadow-md transition-shadow">
       <div className="flex gap-3">
         <div className="flex-shrink-0">
           {post.user?.avatar ? (
@@ -168,10 +179,28 @@ const PostCard = ({ post, user, liked, onLike, onToggleComments, showComments, o
         </div>
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="text-[#cbe0ff] font-medium text-sm truncate">{post.user?.username || "Anonymous"}</span>
-            <time className="text-xs text-gray-400 ml-1" dateTime={post.createdAt}>{formatDate(post.createdAt)}</time>
-            <button className="ml-auto p-1.5 rounded hover:bg-[#0b2a45]" aria-label="More actions"><FaEllipsisH /></button>
+          <div className="flex items-center gap-2 justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-[#cbe0ff] font-medium text-sm truncate">{post.user?.username || "Anonymous"}</span>
+              <time className="text-xs text-gray-400 ml-1" dateTime={post.createdAt}>{formatDate(post.createdAt)}</time>
+            </div>
+            {/* Three dots menu */}
+            <div className="relative" id={`home-post-menu-${post._id}`}> 
+              <button
+                className="p-1.5 rounded-full hover:bg-[#1b2a49] text-gray-400"
+                onClick={() => setShowMenu((v) => !v)}
+                aria-label="Post options"
+              >
+                <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><circle cx="4" cy="10" r="1.5" fill="currentColor"/><circle cx="10" cy="10" r="1.5" fill="currentColor"/><circle cx="16" cy="10" r="1.5" fill="currentColor"/></svg>
+              </button>
+              {showMenu && (
+                <div className="absolute right-0 mt-2 w-36 bg-[#101b2d] border border-[#23385c] rounded shadow-lg z-20 text-sm">
+                  <button className="block w-full text-left px-4 py-2 hover:bg-[#17314d] text-gray-200">Edit</button>
+                  <button className="block w-full text-left px-4 py-2 hover:bg-[#17314d] text-red-400">Delete</button>
+                  <button className="block w-full text-left px-4 py-2 hover:bg-[#17314d] text-gray-200">Report</button>
+                </div>
+              )}
+            </div>
           </div>
 
           {post.text && (
