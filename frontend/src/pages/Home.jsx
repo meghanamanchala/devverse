@@ -228,8 +228,10 @@ const PostCard = ({ post, user, liked, onLike, onToggleComments, showComments, o
                         <div className="text-xs text-[#b9d9ff] font-medium">{c.userInfo?.username || "User"}</div>
                         <div className="text-xs text-gray-200">{c.text}</div>
                       </div>
-                      { /* If user can delete show delete button (handled by parent) */ }
-                      {c.showDelete && <button onClick={() => onDeleteComment(post._id, c._id)} className="text-xs text-red-400">Delete</button>}
+                      {/* Comment author OR post author (admin) can delete comment */}
+                      {user && (c.user === user.id || post.author === user.id) && (
+                        <button onClick={() => onDeleteComment(post._id, c._id)} className="text-xs text-red-400">Delete</button>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -238,7 +240,19 @@ const PostCard = ({ post, user, liked, onLike, onToggleComments, showComments, o
               )}
 
               <div className="mt-3 flex items-center gap-2">
-                <input type="text" className="flex-1 rounded bg-[#081625] border border-[#17314d] px-2 py-1 text-sm text-gray-100" placeholder="Add a comment..." value={commentState.value} onChange={(e) => commentState.set(e.target.value)} />
+                <input
+                  type="text"
+                  className="flex-1 rounded bg-[#081625] border border-[#17314d] px-2 py-1 text-sm text-gray-100"
+                  placeholder="Add a comment..."
+                  value={commentState.value}
+                  onChange={(e) => commentState.set(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      onAddComment(post._id);
+                    }
+                  }}
+                />
                 <button onClick={() => onAddComment(post._id)} className="px-3 py-1 rounded bg-[#2d67b8] text-white text-sm">{commentState.loading ? '...' : 'Post'}</button>
               </div>
             </div>

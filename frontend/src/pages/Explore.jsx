@@ -32,7 +32,7 @@ const Tag = ({ children }) => (
 );
 
 // PostCard for trending posts (with like, comment, share, save)
-const PostCard = ({ post, user, onLike, liked, onAddComment, commentValue, commentLoading, onToggleComments, showComments }) => {
+const PostCard = ({ post, user, onLike, liked, onAddComment, commentValue, commentLoading, onToggleComments, showComments, onDeleteComment }) => {
   const [expanded, setExpanded] = useState(false);
   const [saved, setSaved] = useState(false);
   const shortText = post.text?.length > 240 ? post.text.slice(0, 240) + "…" : post.text;
@@ -107,6 +107,10 @@ const PostCard = ({ post, user, onLike, liked, onAddComment, commentValue, comme
                         <div className="text-xs text-[#b9d9ff] font-medium">{c.userInfo?.username || "User"}</div>
                         <div className="text-xs text-gray-200">{c.text}</div>
                       </div>
+                      {/* Comment author OR post author (admin) can delete comment */}
+                      {user && (c.user === user.id || post.author === user.id) && (
+                        <button onClick={() => onDeleteComment(post._id, c._id)} className="text-xs text-red-400">Delete</button>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -114,7 +118,19 @@ const PostCard = ({ post, user, onLike, liked, onAddComment, commentValue, comme
                 <div className="text-xs text-gray-400">No comments yet.</div>
               )}
               <div className="mt-3 flex items-center gap-2">
-                <input type="text" className="flex-1 rounded bg-[#081625] border border-[#17314d] px-2 py-1 text-sm text-gray-100" placeholder="Add a comment..." value={commentValue} onChange={e => onAddComment('input', post._id, e.target.value)} />
+                <input
+                  type="text"
+                  className="flex-1 rounded bg-[#081625] border border-[#17314d] px-2 py-1 text-sm text-gray-100"
+                  placeholder="Add a comment..."
+                  value={commentValue}
+                  onChange={e => onAddComment('input', post._id, e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      onAddComment('submit', post._id);
+                    }
+                  }}
+                />
                 <button onClick={() => onAddComment('submit', post._id)} className="px-3 py-1 rounded bg-[#2d67b8] text-white text-sm">{commentLoading ? '...' : 'Post'}</button>
               </div>
             </div>
@@ -126,6 +142,35 @@ const PostCard = ({ post, user, onLike, liked, onAddComment, commentValue, comme
 };
 
 const Explore = () => {
+    const [toasts, setToasts] = useState([]);
+    const addToast = (text, life = 3500) => {
+      const id = Date.now() + Math.random();
+      setToasts((t) => [...t, { id, text }]);
+      setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), life);
+    };
+    const handleDeleteComment = async (postId, commentId) => {
+      if (!isSignedIn || !user) return addToast("Sign in to delete comments.");
+      try {
+        const jwt = await getToken();
+        await api.delete(`/posts/${postId}/comments/${commentId}`, { headers: { Authorization: `Bearer ${jwt}` } });
+        addToast("Comment deleted");
+        // Refresh posts
+        const res = await api.get("/posts");
+        const posts = Array.isArray(res.data.posts) ? res.data.posts : [];
+        const sortedPosts = [...posts].sort((a, b) => {
+          const likesA = a.likes?.length || 0;
+          const likesB = b.likes?.length || 0;
+          if (likesB !== likesA) return likesB - likesA;
+          const commentsA = a.comments?.length || 0;
+          const commentsB = b.comments?.length || 0;
+          if (commentsB !== commentsA) return commentsB - commentsA;
+          return new Date(b.createdAt) - new Date(a.createdAt);
+        });
+        setTrendingPosts(sortedPosts.slice(0, 10));
+      } catch (err) {
+        addToast("Unable to delete comment.");
+      }
+    };
   const [trending, setTrending] = useState([]);
   const [trendingPosts, setTrendingPosts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -279,9 +324,16 @@ const Explore = () => {
                     commentLoading={!!commentLoading[post._id]}
                     onToggleComments={handleToggleComments}
                     showComments={!!showComments[post._id]}
+                    onDeleteComment={handleDeleteComment}
                   />
                 );
               })}
+                  {/* Toasts */}
+                  <div className="fixed right-4 bottom-6 z-50 flex flex-col gap-2">
+                    {toasts.map((t) => (
+                      <div key={t.id} className="bg-[#081829] border border-[#17314d] text-white px-4 py-2 rounded shadow">{t.text}</div>
+                    ))}
+                  </div>
             </div>
           )}
         </div>
