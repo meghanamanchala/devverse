@@ -1,3 +1,26 @@
+// Report a post
+exports.reportPost = async (req, res, next) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    if (!post) {
+      return res.status(404).json({ success: false, message: "Post not found" });
+    }
+    // Option 1: Log to console (minimal)
+    // console.log(`Post ${post._id} reported by user ${req.user.id}. Reason:`, req.body.reason);
+
+    // Option 2: Store reports in post (recommended)
+    if (!post.reports) post.reports = [];
+    post.reports.push({
+      user: req.user.id,
+      reason: req.body.reason || "No reason provided",
+      createdAt: new Date()
+    });
+    await post.save();
+    res.json({ success: true, message: "Report submitted" });
+  } catch (err) {
+    next(err);
+  }
+};
 const Post = require("../models/Post");
 const User = require("../models/User");
 const cloudinary = require("../utils/cloudinary");
@@ -107,10 +130,21 @@ exports.updatePost = async (req, res, next) => {
     if (!post)
       return res.status(404).json({ success: false, message: "Post not found" });
 
-    if (post.author.toString() !== req.user.id)
-      return res.status(403).json({ success: false, message: "Not authorized" });
+    // Debug logs for authorization
+    console.log("[updatePost] req.user.id:", req.user.id);
+    console.log("[updatePost] post.author:", post.author);
+
+    if (post.author.toString() !== req.user.id) {
+      console.log("[updatePost] Not authorized. post.author:", post.author, "req.user.id:", req.user.id);
+      return res.status(403).json({ success: false, message: "You can only edit if you are the author or an admin." });
+    }
 
     post.text = req.body.text || post.text;
+
+    // Update tags if provided
+    if (typeof req.body.tags === "string") {
+      post.tags = req.body.tags.split(",").map(tag => tag.trim()).filter(Boolean);
+    }
 
     if (req.file) {
       post.image = await uploadToCloudinary(req.file.buffer);

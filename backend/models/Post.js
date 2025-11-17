@@ -7,6 +7,13 @@ const commentSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
+
+const reportSchema = new mongoose.Schema({
+  user: { type: String, required: true },
+  reason: { type: String },
+  createdAt: { type: Date, default: Date.now }
+});
+
 const postSchema = new mongoose.Schema(
   {
     text: { type: String, required: true },
@@ -15,6 +22,7 @@ const postSchema = new mongoose.Schema(
     likes: [String], // array of Clerk userIds
     comments: [commentSchema],
     tags: [{ type: String }],
+    reports: [reportSchema],
   },
   { timestamps: true }
 );

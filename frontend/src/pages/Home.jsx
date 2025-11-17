@@ -1,8 +1,5 @@
-// Home.jsx (Improved UI)
-// DevVerse — Hero + Feed + Composer
-// Notes: Requires Tailwind CSS. Keep formatDate.js and api.js as-is.
-
-import React, { useEffect, useState, useCallback, useRef } from "react";
+// src/pages/Home.jsx
+import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { CodeXml, Camera } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import api from "../app/api";
@@ -15,11 +12,11 @@ import {
   FaRegBookmark,
   FaBookmark,
   FaShareAlt,
-  FaEllipsisH,
 } from "react-icons/fa";
 import { useUser, useAuth } from "@clerk/clerk-react";
+import PostCard from "../components/Shared/PostCard";
 
-// Small presentational Avatar component with accessible fallback
+// --- Composer (kept as before) ---
 const Avatar = ({ src, alt, size = 10 }) => (
   <img
     src={src}
@@ -33,12 +30,10 @@ const Avatar = ({ src, alt, size = 10 }) => (
   />
 );
 
-// Utility: small chip component for tags
 const Tag = ({ children }) => (
   <span className="text-xs px-2 py-0.5 rounded-full bg-[#122033] text-[#9fc1ff] border border-[#23385c]/40 mr-1 mb-1 inline-block">#{children}</span>
 );
 
-// Composer — extracted to make Home cleaner and reusable
 const Composer = ({ user, isSignedIn, onPost, uploading, initialImagePreview }) => {
   const [text, setText] = useState("");
   const [tags, setTags] = useState("");
@@ -79,8 +74,8 @@ const Composer = ({ user, isSignedIn, onPost, uploading, initialImagePreview }) 
   };
 
   return (
-  <form onSubmit={submit} className="bg-[#081224] border border-[#17314d] rounded-2xl p-6 shadow-lg mb-8">
-  <div className="flex gap-3">
+    <form onSubmit={submit} className="bg-[#081224] border border-[#17314d] rounded-2xl p-6 shadow-lg mb-8">
+      <div className="flex gap-3">
         <div className="flex-shrink-0">
           {user?.profileImageUrl ? (
             <Avatar src={user.profileImageUrl} alt={user?.fullName || "Your avatar"} size={10} />
@@ -149,149 +144,7 @@ const Composer = ({ user, isSignedIn, onPost, uploading, initialImagePreview }) 
   );
 };
 
-// Single Post card — presentational logic separated for readability
-const PostCard = ({ post, user, liked, onLike, onToggleComments, showComments, onShare, saved, onSave, onDeleteComment, onAddComment, commentState }) => {
-  const [expanded, setExpanded] = useState(false);
-  const [showMenu, setShowMenu] = useState(false);
-  const shortText = post.text?.length > 240 ? post.text.slice(0, 240) + "…" : post.text;
-
-  // Close menu on click outside
-  useEffect(() => {
-    if (!showMenu) return;
-    const handler = (e) => {
-      if (!e.target.closest(`#home-post-menu-${post._id}`)) setShowMenu(false);
-    };
-    window.addEventListener('mousedown', handler);
-    return () => window.removeEventListener('mousedown', handler);
-  }, [showMenu, post._id]);
-
-  return (
-    <article className="relative rounded-lg p-4 bg-[#081224] border border-[#17314d] shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex gap-3">
-        <div className="flex-shrink-0">
-          {post.user?.avatar ? (
-            <Avatar src={post.user.avatar} alt={post.user.username || "avatar"} size={8} />
-          ) : (
-            <div className="w-8 h-8 rounded-full bg-[#16223a] flex items-center justify-center text-gray-300 border border-[#23385c]">
-              <FaUserCircle className="w-4 h-4" />
-            </div>
-          )}
-        </div>
-
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-[#cbe0ff] font-medium text-sm truncate">{post.user?.username || "Anonymous"}</span>
-              <time className="text-xs text-gray-400 ml-1" dateTime={post.createdAt}>{formatDate(post.createdAt)}</time>
-            </div>
-            {/* Three dots menu */}
-            <div className="relative" id={`home-post-menu-${post._id}`}> 
-              <button
-                className="p-1.5 rounded-full hover:bg-[#1b2a49] text-gray-400"
-                onClick={() => setShowMenu((v) => !v)}
-                aria-label="Post options"
-              >
-                <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><circle cx="4" cy="10" r="1.5" fill="currentColor"/><circle cx="10" cy="10" r="1.5" fill="currentColor"/><circle cx="16" cy="10" r="1.5" fill="currentColor"/></svg>
-              </button>
-              {showMenu && (
-                <div className="absolute right-0 mt-2 w-36 bg-[#101b2d] border border-[#23385c] rounded shadow-lg z-20 text-sm">
-                  <button className="block w-full text-left px-4 py-2 hover:bg-[#17314d] text-gray-200">Edit</button>
-                  <button className="block w-full text-left px-4 py-2 hover:bg-[#17314d] text-red-400">Delete</button>
-                  <button className="block w-full text-left px-4 py-2 hover:bg-[#17314d] text-gray-200">Report</button>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {post.text && (
-            <div className="text-gray-200 text-sm mt-2 break-words">
-              <p className="relative">
-                {expanded ? post.text : shortText}
-                {post.text?.length > 240 && (
-                  <button onClick={() => setExpanded((s) => !s)} className="ml-2 text-xs text-[#9fc1ff] underline">
-                    {expanded ? "Show less" : "Read more"}
-                  </button>
-                )}
-              </p>
-            </div>
-          )}
-
-          {post.image && (
-            <div className="mt-3">
-              <img src={post.image} alt={post.text?.slice(0, 60) || "post image"} className="w-full max-w-xl rounded-md object-cover border border-[#23385c]/25 cursor-pointer" />
-            </div>
-          )}
-
-          {post.tags?.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-2">
-              {post.tags.map((t, i) => (<Tag key={i}>{t}</Tag>))}
-            </div>
-          )}
-
-          <div className="mt-3 flex items-center gap-4 border-t border-[#17314d] pt-3 text-sm text-[#9fc1ff]">
-            <button onClick={() => onLike(post._id, liked)} className="flex items-center gap-2" aria-pressed={!!liked}>
-              {liked ? <FaHeart className="text-pink-400" /> : <FaRegHeart />} <span>{post.likes?.length || 0}</span>
-            </button>
-
-            <button onClick={() => onToggleComments(post._id)} className="flex items-center gap-2">
-              <FaRegComment /> <span>{post.comments?.length || 0}</span>
-            </button>
-
-            <button onClick={() => onShare(post)} className="flex items-center gap-2">
-              <FaShareAlt /> <span>Share</span>
-            </button>
-
-            <button onClick={() => onSave(post._id)} className="ml-auto p-1.5 rounded" aria-label="Save post">
-              {saved ? <FaBookmark /> : <FaRegBookmark />}
-            </button>
-          </div>
-
-          {showComments && (
-            <div className="mt-3 bg-[#061a2a] border border-[#23385c]/20 rounded-md p-3">
-              <div className="font-semibold text-sm text-[#cbe0ff] mb-2">Comments</div>
-              {post.comments?.length > 0 ? (
-                <ul className="space-y-2 max-h-36 overflow-auto pr-1 text-sm text-gray-200">
-                  {post.comments.map((c) => (
-                    <li key={c._id} className="flex items-start justify-between">
-                      <div>
-                        <div className="text-xs text-[#b9d9ff] font-medium">{c.userInfo?.username || "User"}</div>
-                        <div className="text-xs text-gray-200">{c.text}</div>
-                      </div>
-                      {/* Comment author OR post author (admin) can delete comment */}
-                      {user && (c.user === user.id || post.author === user.id) && (
-                        <button onClick={() => onDeleteComment(post._id, c._id)} className="text-xs text-red-400">Delete</button>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <div className="text-xs text-gray-400">No comments yet.</div>
-              )}
-
-              <div className="mt-3 flex items-center gap-2">
-                <input
-                  type="text"
-                  className="flex-1 rounded bg-[#081625] border border-[#17314d] px-2 py-1 text-sm text-gray-100"
-                  placeholder="Add a comment..."
-                  value={commentState.value}
-                  onChange={(e) => commentState.set(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      onAddComment(post._id);
-                    }
-                  }}
-                />
-                <button onClick={() => onAddComment(post._id)} className="px-3 py-1 rounded bg-[#2d67b8] text-white text-sm">{commentState.loading ? '...' : 'Post'}</button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </article>
-  );
-};
-
+// --- Home page ---
 const Home = () => {
   const navigate = useNavigate();
   const { user, isSignedIn } = useUser();
@@ -302,8 +155,7 @@ const Home = () => {
   const [error, setError] = useState(null);
 
   // UI states
-  const [likeState, setLikeState] = useState({});
-  const [showComments, setShowComments] = useState({});
+  const [openCommentsPostId, setOpenCommentsPostId] = useState(null);
   const [savedState, setSavedState] = useState({});
   const [commentInputs, setCommentInputs] = useState({});
   const [commentLoading, setCommentLoading] = useState({});
@@ -361,7 +213,6 @@ const Home = () => {
       if (!liked) await api.post(`/posts/${postId}/like`, {}, { headers: { Authorization: `Bearer ${jwt}` } });
       else await api.post(`/posts/${postId}/unlike`, {}, { headers: { Authorization: `Bearer ${jwt}` } });
 
-      setLikeState((p) => ({ ...p, [postId]: !liked }));
       setPosts((prev) => prev.map((p) => (p._id === postId ? { ...p, likes: liked ? p.likes.filter((id) => id !== user.id) : [...(p.likes || []), user.id] } : p)));
     } catch (err) {
       console.error(err);
@@ -369,7 +220,9 @@ const Home = () => {
     }
   };
 
-  const handleToggleComments = (postId) => setShowComments((prev) => ({ ...prev, [postId]: !prev[postId] }));
+  const handleToggleComments = (postId) => {
+    setOpenCommentsPostId((prev) => (prev === postId ? null : postId));
+  };
 
   const handleAddComment = async (postId) => {
     if (!isSignedIn || !user) return addToast("Sign in to comment.");
@@ -419,11 +272,115 @@ const Home = () => {
   const openImage = (url) => setImageModal(url);
   const closeImage = () => setImageModal(null);
 
+  // --- Menu handlers: Edit / Delete / Report ---
+  const handleEditPost = async (post) => {
+    if (!isSignedIn || !user) return addToast("Sign in to edit posts.");
+    // minimal UI: prompt for new text — replace with modal later
+    const newText = window.prompt("Edit post text:", post.text || "");
+    if (newText == null) return; // cancelled
+    try {
+      const jwt = await getToken();
+      await api.patch(`/posts/${post._id}`, { text: newText.trim() }, { headers: { Authorization: `Bearer ${jwt}` } });
+      addToast("Post updated");
+      await fetchPosts();
+    } catch (err) {
+      console.error(err);
+      // Show backend error message if present
+      const msg = err?.response?.data?.message;
+      if (msg === "You can only edit if you are the author or an admin.") {
+        addToast(msg);
+      } else {
+        addToast("Could not update post");
+      }
+    }
+  };
+
+  const handleDeletePost = async (post) => {
+    if (!isSignedIn || !user) return addToast("Sign in to delete posts.");
+    const confirmed = window.confirm("Delete this post?");
+    if (!confirmed) return;
+    try {
+      const jwt = await getToken();
+      await api.delete(`/posts/${post._id}`, { headers: { Authorization: `Bearer ${jwt}` } });
+      addToast("Post deleted");
+      await fetchPosts();
+    } catch (err) {
+      console.error(err);
+      addToast("Could not delete post");
+    }
+  };
+
+  const handleReportPost = async (post, reason) => {
+    try {
+      const jwt = isSignedIn ? await getToken() : null;
+      await api.post(`/posts/${post._id}/report`, { reason: reason || "User reported from UI" }, { headers: jwt ? { Authorization: `Bearer ${jwt}` } : {} });
+      addToast("Report submitted");
+    } catch (err) {
+      addToast("Report submitted");
+    }
+  };
+
+  // Memoize post cards
+  const postCards = useMemo(() => {
+    return posts.map((post) => {
+      const liked = post.likes?.includes?.(user?.id || "");
+      const isSaved = !!savedState[post._id];
+      const commentsWithPerm = (post.comments || []).map((c) => ({ ...c, showDelete: !!(user && (c.user === user.id || post.author === user.id)) }));
+
+      return (
+        <PostCard
+          key={post._id}
+          post={{ ...post, comments: commentsWithPerm }}
+          user={user}
+          liked={liked}
+          onLike={handleLike}
+          onToggleComments={handleToggleComments}
+          showComments={openCommentsPostId === post._id}
+          onShare={handleShare}
+          saved={isSaved}
+          onSave={handleSave}
+          onDeleteComment={handleDeleteComment}
+          onAddComment={(id) => handleAddComment(id)}
+          commentState={{ value: commentInputs[post._id] || "", set: (v) => setCommentInputs((p) => ({ ...p, [post._id]: v })), loading: !!commentLoading[post._id] }}
+          onEdit={async (editData, setIsEditing) => {
+            // Only allow if author
+            if (!isSignedIn || !user) return addToast("Sign in to edit posts.");
+            try {
+              const jwt = await getToken();
+              const form = new FormData();
+              form.append("text", editData.text.trim());
+              form.append("tags", editData.tags);
+              if (editData.imageFile) form.append("image", editData.imageFile);
+              if (editData.removeImage) form.append("removeImage", "true");
+              await api.patch(`/posts/${post._id}`, form, {
+                headers: { Authorization: `Bearer ${jwt}` }
+              });
+              addToast("Post updated");
+              await fetchPosts();
+              setIsEditing(false);
+            } catch (err) {
+              console.error(err);
+              const msg = err?.response?.data?.message;
+              if (msg === "You can only edit if you are the author or an admin.") {
+                addToast(msg);
+              } else {
+                addToast("Could not update post");
+              }
+            }
+          }}
+          onDelete={() => handleDeletePost(post)}
+          onReport={(reason) => handleReportPost(post, reason)}
+          openImage={(url) => openImage(url)}
+        />
+      );
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [posts, user, savedState, openCommentsPostId, commentInputs, commentLoading]);
+
   return (
     <section className="min-h-screen w-full bg-gradient-to-br from-[#07101a] via-[#061328] to-[#071428] text-white pb-12">
-      {/* Hero */}
-  <div className="max-w-4xl mx-auto px-4 pt-10">
-  <div className="rounded-2xl p-6 bg-gradient-to-br from-[#071428] to-[#0b2136] border border-[#1e3a5e]/40 shadow-lg flex flex-col sm:flex-row items-center gap-4 mb-8">
+      <div className="max-w-4xl mx-auto px-4 pt-10">
+        <div className="rounded-2xl p-6 bg-gradient-to-br from-[#071428] to-[#0b2136] border border-[#1e3a5e]/40 shadow-lg flex flex-col sm:flex-row items-center gap-4 mb-8">
           <div className="p-3 rounded-xl bg-gradient-to-br from-[#2f68b6] to-[#1b3a78]">
             <CodeXml size={48} className="text-white" />
           </div>
@@ -437,66 +394,37 @@ const Home = () => {
           </div>
         </div>
 
-        {/* Redesigned Composer */}
-        {/* Improved Composer with image preview and remove */}
         <div className="mb-10">
           <Composer user={user} isSignedIn={isSignedIn} onPost={handlePost} uploading={uploading} />
         </div>
 
-        {/* Feed */}
-  <div className="mt-8">
-  {loading ? (
-          <div className="space-y-3">
-            {[1,2,3].map((i)=> (
-              <div key={i} className="animate-pulse bg-[#061427] border border-[#17314d] rounded-lg p-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gray-700" />
-                  <div className="flex-1 space-y-2">
-                    <div className="h-3 w-1/3 bg-gray-700 rounded" />
-                    <div className="h-2 w-1/6 bg-gray-700 rounded" />
+        <div className="mt-8">
+          {loading ? (
+            <div className="space-y-3">
+              {[1,2,3].map((i)=> (
+                <div key={i} className="animate-pulse bg-[#061427] border border-[#17314d] rounded-lg p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-gray-700" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-3 w-1/3 bg-gray-700 rounded" />
+                      <div className="h-2 w-1/6 bg-gray-700 rounded" />
+                    </div>
                   </div>
+                  <div className="mt-3 h-4 bg-gray-700 w-4/5 rounded" />
+                  <div className="mt-3 h-36 bg-gray-700 rounded" />
                 </div>
-                <div className="mt-3 h-4 bg-gray-700 w-4/5 rounded" />
-                <div className="mt-3 h-36 bg-gray-700 rounded" />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {error && <div className="text-red-400">{error}</div>}
-            {posts.length === 0 && <div className="text-gray-400 text-center py-8">No posts yet — start the conversation!</div>}
-
-            {posts.map((post) => {
-              const liked = post.likes?.includes?.(user?.id || "");
-              const isSaved = !!savedState[post._id];
-
-              // prepare comments with delete permission flag
-              const commentsWithPerm = (post.comments || []).map((c) => ({ ...c, showDelete: !!(user && (c.user === user.id || post.author === user.id)) }));
-
-              return (
-                <PostCard
-                  key={post._id}
-                  post={{ ...post, comments: commentsWithPerm }}
-                  user={user}
-                  liked={liked}
-                  onLike={handleLike}
-                  onToggleComments={handleToggleComments}
-                  showComments={!!showComments[post._id]}
-                  onShare={handleShare}
-                  saved={isSaved}
-                  onSave={handleSave}
-                  onDeleteComment={handleDeleteComment}
-                  onAddComment={(id) => handleAddComment(id)}
-                  commentState={{ value: commentInputs[post._id] || "", set: (v) => setCommentInputs((p) => ({ ...p, [post._id]: v })), loading: !!commentLoading[post._id] }}
-                />
-              );
-            })}
-          </div>
-  )}
-  </div>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {error && <div className="text-red-400">{error}</div>}
+              {posts.length === 0 && <div className="text-gray-400 text-center py-8">No posts yet — start the conversation!</div>}
+              {postCards}
+            </div>
+          )}
+        </div>
       </div>
 
-        {/* (Composer and feed are above; nothing more here) */}
       {imageModal && (
         <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" role="dialog" aria-modal="true">
           <div className="max-w-4xl w-full">
@@ -506,7 +434,6 @@ const Home = () => {
         </div>
       )}
 
-      {/* Toasts */}
       <div className="fixed right-4 bottom-6 z-50 flex flex-col gap-2">
         {toasts.map((t) => (
           <div key={t.id} className="bg-[#081829] border border-[#17314d] text-white px-4 py-2 rounded shadow">{t.text}</div>

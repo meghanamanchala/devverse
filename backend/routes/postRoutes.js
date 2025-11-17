@@ -46,6 +46,11 @@ router.get("/", getPosts);
 router.get("/search", searchPosts);
 router.get("/:id", getPost);
 router.put("/:id", authMiddleware, upload.single("image"), updatePost);
+// Allow PATCH for partial updates (frontend uses PATCH)
+router.patch("/:id", authMiddleware, upload.single("image"), updatePost);
+// Report a post
+const { reportPost } = require("../controllers/postController");
+router.post("/:id/report", authMiddleware, reportPost);
 router.delete("/:id", authMiddleware, deletePost);
 router.post("/:id/like", authMiddleware, likePost);
 router.post("/:id/unlike", authMiddleware, unlikePost);
