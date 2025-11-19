@@ -1,442 +1,745 @@
+// ===============================
 // src/pages/Home.jsx
-import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
-import { CodeXml, Camera } from "lucide-react";
+// Cleaned UI + Lucide Icons + Smooth Animations
+// ===============================
+
+import React, {
+  useEffect,
+  useState,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
+
+import {
+  CodeXml,
+  Camera,
+  Heart,
+  MessageCircle,
+  Bookmark,
+  BookmarkCheck,
+  Share2,
+  UserRound,
+  MoreVertical,
+  X,
+  CheckCircle,
+  XCircle,
+} from "lucide-react";
+
 import { useNavigate } from "react-router-dom";
 import api from "../app/api";
-import { formatDate } from "../utils/formatDate";
-import {
-  FaRegHeart,
-  FaHeart,
-  FaRegComment,
-  FaUserCircle,
-  FaRegBookmark,
-  FaBookmark,
-  FaShareAlt,
-} from "react-icons/fa";
 import { useUser, useAuth } from "@clerk/clerk-react";
+
 import PostCard from "../components/Shared/PostCard";
 
-// --- Composer (kept as before) ---
-const Avatar = ({ src, alt, size = 10 }) => (
-  <img
-    src={src}
-    alt={alt || "avatar"}
-    onError={(e) => {
-      e.currentTarget.onerror = null;
-      e.currentTarget.src = "/fallback-avatar.png";
-    }}
-    className={`w-${size} h-${size} rounded-full object-cover border border-[#23385c]`}
-    loading="lazy"
-  />
+//
+// ===============================
+// Save user to MongoDB
+// ===============================
+const saveUserToDB = async (user, getToken) => {
+  try {
+    const token = await getToken();
+
+    await fetch("http://localhost:5000/api/auth/save-user", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        clerkId: user.id,
+        email: user.primaryEmailAddress.emailAddress,
+        name: user.fullName,
+        username:
+          user.username ||
+          user.primaryEmailAddress.emailAddress.split("@")[0],
+      }),
+    });
+  } catch (err) {
+    console.error("❌ Error saving user:", err);
+  }
+};
+
+//
+// ===============================
+// Avatar Component (Lucide-based)
+// ===============================
+const Avatar = ({ src, size = 10 }) => (
+  <div
+    className={`w-${size} h-${size} rounded-full overflow-hidden border border-[#23385c] bg-[#16223a] flex items-center justify-center`}
+  >
+    {src ? (
+      <img
+        src={src}
+        className="w-full h-full object-cover"
+        onError={(e) => {
+          e.currentTarget.onerror = null;
+          e.currentTarget.src = "/fallback-avatar.png";
+        }}
+        alt="avatar"
+      />
+    ) : (
+      <UserRound className="text-gray-300 w-6 h-6" />
+    )}
+  </div>
 );
 
-const Tag = ({ children }) => (
-  <span className="text-xs px-2 py-0.5 rounded-full bg-[#122033] text-[#9fc1ff] border border-[#23385c]/40 mr-1 mb-1 inline-block">#{children}</span>
-);
 
-const Composer = ({ user, isSignedIn, onPost, uploading, initialImagePreview }) => {
+//
+// ===============================
+// Composer Component (clean)
+// ===============================
+// =========================================
+// ✨ BEAUTIFIED COMPOSER COMPONENT — FINAL
+// =========================================
+const Composer = ({ user, isSignedIn, onPost, uploading }) => {
   const [text, setText] = useState("");
   const [tags, setTags] = useState("");
   const [image, setImage] = useState(null);
-  const [imagePreview, setImagePreview] = useState(initialImagePreview || null);
+  const [preview, setPreview] = useState(null);
   const fileRef = useRef(null);
 
-  useEffect(() => {
-    if (!initialImagePreview) setImagePreview(null);
-  }, [initialImagePreview]);
-
-  const handleImageChange = (e) => {
+  const handleImage = (e) => {
     const file = e.target.files?.[0];
     if (file) {
       setImage(file);
-      setImagePreview(URL.createObjectURL(file));
+      setPreview(URL.createObjectURL(file));
     }
-  };
-
-  const removeImage = () => {
-    setImage(null);
-    setImagePreview(null);
-    if (fileRef.current) fileRef.current.value = "";
   };
 
   const clearForm = () => {
     setText("");
     setTags("");
     setImage(null);
-    setImagePreview(null);
+    setPreview(null);
     if (fileRef.current) fileRef.current.value = "";
   };
 
-  const submit = async (e) => {
-    e?.preventDefault();
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     if (!text.trim() && !image) return;
-    await onPost({ text: text.trim(), tags, image, clearForm });
+    await onPost({ text, tags, image, clearForm });
   };
 
   return (
-    <form onSubmit={submit} className="bg-[#081224] border border-[#17314d] rounded-2xl p-6 shadow-lg mb-8">
-      <div className="flex gap-3">
-        <div className="flex-shrink-0">
+    <div
+      className="
+        bg-[#0b1628]/80 
+        border border-[#1d3557]/40 
+        rounded-2xl 
+        backdrop-blur-md 
+        p-6 
+        shadow-xl 
+        shadow-black/30
+        transition 
+        hover:border-[#2f6ccb]/60 
+        hover:shadow-[#0e1a33]/50
+        duration-300
+        mb-10
+      "
+    >
+      {/* Top Section */}
+      <div className="flex gap-4 mb-4">
+        {/* Avatar */}
+        <div className="shrink-0">
           {user?.profileImageUrl ? (
-            <Avatar src={user.profileImageUrl} alt={user?.fullName || "Your avatar"} size={10} />
+            <img
+              src={user.profileImageUrl}
+              className="w-11 h-11 rounded-full border border-[#24456c] object-cover"
+            />
           ) : (
-            <div className="w-10 h-10 rounded-full bg-[#16223a] flex items-center justify-center text-gray-300 border border-[#23385c]">
-              <FaUserCircle className="w-5 h-5" />
+            <div className="w-11 h-11 rounded-full bg-[#16223a] border border-[#24456c] flex items-center justify-center">
+              <UserRound className="text-gray-300" size={20} />
             </div>
           )}
         </div>
 
-        <div className="flex-1">
-          <textarea
-            className="w-full bg-transparent focus:outline-none text-gray-100 placeholder-gray-400 rounded-md p-3 min-h-[90px] resize-none border border-transparent focus:ring-2 focus:ring-[#2f5aa0]"
-            placeholder={isSignedIn ? "Share your thoughts, a project or a helpful tip..." : "Sign in to post"}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
+        {/* Textarea */}
+<textarea
+  className="
+    flex-1 
+    bg-[#0e1c2f]/40 
+    border border-[#1d3557]/40     /* ⭐ default visible border */
+    focus:border-[#2f6ccb] 
+    focus:ring-2 
+    focus:ring-[#2f6ccb]/40 
+    rounded-xl 
+    p-4 
+    text-gray-100 
+    placeholder-gray-400 
+    min-h-[90px] 
+    outline-none
+    transition
+  "
+  placeholder={
+    isSignedIn
+      ? 'What are you building today?'
+      : 'Sign in to share something...'
+  }
+  value={text}
+  onChange={(e) => setText(e.target.value)}
+  disabled={!isSignedIn}
+/>
+
+      </div>
+
+      {/* Image Preview */}
+      {preview && (
+        <div className="relative w-fit mb-4">
+          <img
+            src={preview}
+            className="w-36 h-36 object-cover rounded-xl border border-[#2f4a6d]/40 shadow-lg"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              setPreview(null);
+              setImage(null);
+            }}
+            className="
+              absolute 
+              -top-2 
+              -right-2 
+              w-7 
+              h-7 
+              rounded-full 
+              bg-red-600 
+              text-white 
+              flex 
+              items-center 
+              justify-center 
+              shadow 
+              hover:bg-red-700
+              transition
+            "
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
+      {/* Bottom Row */}
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+        {/* Left controls */}
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          {/* Upload Image */}
+          <label
+            className="
+              flex items-center gap-2 
+              bg-[#0f2038] 
+              border border-[#2a3f5e]/40 
+              px-3 py-2 
+              rounded-lg 
+              text-gray-200 
+              cursor-pointer 
+              hover:bg-[#143057]/70 
+              transition
+              text-sm
+            "
+          >
+            <Camera size={15} />
+            Image
+            <input
+              type="file"
+              ref={fileRef}
+              accept="image/*"
+              className="hidden"
+              onChange={handleImage}
+            />
+          </label>
+
+          {/* Tags */}
+          <input
+            className="
+              bg-[#0e1c2f]/40
+              border border-transparent
+              focus:border-[#2f6ccb]
+              focus:ring-2
+              focus:ring-[#2f6ccb]/40
+              text-gray-200
+              text-sm
+              px-3
+              py-2
+              rounded-lg
+              outline-none
+              transition
+              placeholder-gray-400
+              flex-1
+            "
+            placeholder="Tag : React, UI, Design"
+            value={tags}
+            onChange={(e) => setTags(e.target.value)}
             disabled={!isSignedIn}
-            aria-label="Post content"
           />
 
-          <div className="mt-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <label className="cursor-pointer flex items-center gap-2 text-sm px-3 py-2 rounded-md bg-[#061024] border border-[#23385c]/10 hover:bg-[#071d33] transition-colors">
-                <Camera size={14} />
-                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageChange} disabled={!isSignedIn} />
-                <span>{image ? "Change" : "Add"} image</span>
-              </label>
-
-              <input
-                className="bg-[#061324] text-gray-200 rounded px-3 py-2 text-sm w-full sm:w-48 focus:outline-none border border-[#23385c]/10"
-                placeholder="tags: react, rails"
-                value={tags}
-                onChange={(e) => setTags(e.target.value)}
-                disabled={!isSignedIn}
-                aria-label="Post tags"
-              />
-
-              <button type="button" onClick={clearForm} className="text-sm px-3 py-2 rounded-md bg-transparent border border-[#23385c]/10 hover:bg-[#0b243a]">
-                Clear
-              </button>
-            </div>
-
-            <div className="flex items-center gap-3 w-full sm:w-auto">
-              {imagePreview ? (
-                <div className="flex items-center gap-2 bg-[#081829] border border-[#23385c]/20 rounded p-2">
-                  <img src={imagePreview} alt="preview" className="h-12 w-12 rounded-md object-cover border border-[#23385c]/20" />
-                  <div className="text-xs text-gray-300 max-w-[120px] truncate">{image?.name || "Selected image"}</div>
-                  <button type="button" onClick={removeImage} className="ml-1 px-2 py-1 text-xs rounded bg-[#1b2a49] text-white hover:bg-red-500 transition-colors">Remove</button>
-                </div>
-              ) : (
-                <div className="text-xs text-gray-400">No image selected</div>
-              )}
-
-              <button
-                type="submit"
-                disabled={uploading || (!text.trim() && !image) || !isSignedIn}
-                className={`px-4 py-2 rounded-lg font-semibold bg-gradient-to-br from-[#2d67b8] to-[#1b3a78] hover:from-[#244f8e] disabled:opacity-60`}
-              >
-                {uploading ? "Posting..." : "Post"}
-              </button>
-            </div>
-          </div>
+          {/* Clear */}
+          <button
+            type="button"
+            onClick={clearForm}
+            className="
+              px-3 
+              py-2 
+              rounded-lg 
+              border border-[#2a3f5e]/40 
+              text-gray-300 
+              text-sm 
+              hover:bg-[#143057]/50 
+              transition
+            "
+          >
+            Clear
+          </button>
         </div>
+
+        {/* Submit */}
+        <button
+          onClick={handleSubmit}
+          disabled={!isSignedIn || uploading || (!text.trim() && !image)}
+          className="
+            w-full sm:w-auto
+            px-6 
+            py-2.5 
+            bg-gradient-to-br 
+            from-[#2d67b8] 
+            to-[#1b3a78] 
+            rounded-xl 
+            text-white 
+            font-medium 
+            shadow-md 
+            hover:scale-[1.03] 
+            hover:shadow-lg 
+            active:scale-[0.97] 
+            transition 
+            disabled:opacity-50 
+            disabled:cursor-not-allowed
+          "
+        >
+          {uploading ? "Posting..." : "Post"}
+        </button>
       </div>
-    </form>
+    </div>
   );
 };
 
-// --- Home page ---
+
+//
+// ===============================
+// Toast System (Modern, Clean)
+// ===============================
+const Toast = ({ text }) => (
+  <div className="flex items-center gap-2 bg-[#081829] border border-[#17314d] text-white px-4 py-2 rounded shadow animate-fade-in">
+    <CheckCircle size={18} className="text-green-400" />
+    <span className="text-sm">{text}</span>
+  </div>
+);
+
+
+//
+// ===============================
+// Main Home Component (logic part)
+// ===============================
 const Home = () => {
   const navigate = useNavigate();
-  const { user, isSignedIn } = useUser();
+  const { user, isSignedIn, isLoaded } = useUser();
   const { getToken } = useAuth();
 
   const [posts, setPosts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  // UI states
-  const [openCommentsPostId, setOpenCommentsPostId] = useState(null);
   const [savedState, setSavedState] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [openCommentsPostId, setOpenCommentsPostId] = useState(null);
   const [commentInputs, setCommentInputs] = useState({});
   const [commentLoading, setCommentLoading] = useState({});
   const [toasts, setToasts] = useState([]);
   const [imageModal, setImageModal] = useState(null);
-  const [uploading, setUploading] = useState(false);
 
-  const addToast = (text, life = 3500) => {
-    const id = Date.now() + Math.random();
+  //
+  // Toast helper
+  //
+  const addToast = (text) => {
+    const id = Date.now();
     setToasts((t) => [...t, { id, text }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), life);
+    setTimeout(() => {
+      setToasts((t) => t.filter((x) => x.id !== id));
+    }, 2800);
   };
 
+  //
+  // Sync user once
+  //
+  const [synced, setSynced] = useState(false);
+  useEffect(() => {
+    if (!isLoaded || !user || synced) return;
+    saveUserToDB(user, getToken);
+    setSynced(true);
+  }, [isLoaded, user, synced]);
+
+
+  //
+  // Fetch posts
+  //
   const fetchPosts = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get("/posts");
-      setPosts(Array.isArray(res.data.posts) ? res.data.posts : []);
-      setError(null);
-    } catch (err) {
-      console.error(err);
-      setError("Failed to load posts. Try refreshing.");
-    } finally {
-      setLoading(false);
+      setPosts(res.data.posts || []);
+    } catch {
+      addToast("Failed to fetch posts");
     }
+    setLoading(false);
   }, []);
 
-  useEffect(() => { fetchPosts(); }, [fetchPosts]);
+  useEffect(() => {
+    fetchPosts();
+  }, [fetchPosts]);
 
+
+  //
+  // Create Post
+  //
   const handlePost = async ({ text, tags, image, clearForm }) => {
     setUploading(true);
     try {
-      const formData = new FormData();
-      formData.append("text", text);
-      formData.append("tags", tags);
-      if (image) formData.append("image", image);
+      const form = new FormData();
+      form.append("text", text);
+      form.append("tags", tags);
+      if (image) form.append("image", image);
+
       const token = await getToken();
-      await api.post("/posts", formData, { headers: { "Content-Type": "multipart/form-data", Authorization: `Bearer ${token}` } });
+      await api.post("/posts", form, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      addToast("Posted!");
       clearForm();
-      addToast("Posted successfully");
-      await fetchPosts();
-    } catch (err) {
-      console.error(err);
-      addToast("Failed to create post");
-    } finally {
-      setUploading(false);
+      fetchPosts();
+    } catch {
+      addToast("Failed to post");
     }
+    setUploading(false);
   };
 
+
+  //
+  // Like/unlike
+  //
   const handleLike = async (postId, liked) => {
-    if (!isSignedIn || !user) return addToast("Sign in to like posts.");
-
     try {
-      const jwt = await getToken();
-      if (!liked) await api.post(`/posts/${postId}/like`, {}, { headers: { Authorization: `Bearer ${jwt}` } });
-      else await api.post(`/posts/${postId}/unlike`, {}, { headers: { Authorization: `Bearer ${jwt}` } });
+      const token = await getToken();
 
-      setPosts((prev) => prev.map((p) => (p._id === postId ? { ...p, likes: liked ? p.likes.filter((id) => id !== user.id) : [...(p.likes || []), user.id] } : p)));
-    } catch (err) {
-      console.error(err);
-      addToast("Unable to like post.");
-    }
-  };
-
-  const handleToggleComments = (postId) => {
-    setOpenCommentsPostId((prev) => (prev === postId ? null : postId));
-  };
-
-  const handleAddComment = async (postId) => {
-    if (!isSignedIn || !user) return addToast("Sign in to comment.");
-    const val = (commentInputs[postId] || "").trim();
-    if (!val) return;
-
-    setCommentLoading((p) => ({ ...p, [postId]: true }));
-    try {
-      const jwt = await getToken();
-      await api.post(`/posts/${postId}/comments`, { text: val }, { headers: { Authorization: `Bearer ${jwt}` } });
-      setCommentInputs((p) => ({ ...p, [postId]: "" }));
-      await fetchPosts();
-    } catch (err) {
-      console.error(err);
-      addToast("Failed to add comment.");
-    } finally {
-      setCommentLoading((p) => ({ ...p, [postId]: false }));
-    }
-  };
-
-  const handleDeleteComment = async (postId, commentId) => {
-    if (!isSignedIn || !user) return addToast("Sign in to delete comments.");
-    try {
-      const jwt = await getToken();
-      await api.delete(`/posts/${postId}/comments/${commentId}`, { headers: { Authorization: `Bearer ${jwt}` } });
-      addToast("Comment deleted");
-      await fetchPosts();
-    } catch (err) {
-      console.error(err);
-      addToast("Unable to delete comment.");
-    }
-  };
-
-  const handleSave = (postId) => {
-    setSavedState((prev) => ({ ...prev, [postId]: !prev[postId] }));
-    addToast(savedState[postId] ? "Removed from saved" : "Saved post");
-  };
-
-  const handleShare = async (post) => {
-    const txt = post.text || "";
-    if (navigator?.clipboard) {
-      try { await navigator.clipboard.writeText(txt); addToast("Post text copied to clipboard"); }
-      catch { addToast("Unable to copy"); }
-    } else addToast("Clipboard not available");
-  };
-
-  const openImage = (url) => setImageModal(url);
-  const closeImage = () => setImageModal(null);
-
-  // --- Menu handlers: Edit / Delete / Report ---
-  const handleEditPost = async (post) => {
-    if (!isSignedIn || !user) return addToast("Sign in to edit posts.");
-    // minimal UI: prompt for new text — replace with modal later
-    const newText = window.prompt("Edit post text:", post.text || "");
-    if (newText == null) return; // cancelled
-    try {
-      const jwt = await getToken();
-      await api.patch(`/posts/${post._id}`, { text: newText.trim() }, { headers: { Authorization: `Bearer ${jwt}` } });
-      addToast("Post updated");
-      await fetchPosts();
-    } catch (err) {
-      console.error(err);
-      // Show backend error message if present
-      const msg = err?.response?.data?.message;
-      if (msg === "You can only edit if you are the author or an admin.") {
-        addToast(msg);
+      if (!liked) {
+        await api.post(
+          `/posts/${postId}/like`,
+          {},
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
       } else {
-        addToast("Could not update post");
+        await api.post(
+          `/posts/${postId}/unlike`,
+          {},
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
       }
+
+      addToast(liked ? "Unliked" : "Liked");
+
+      setPosts((prev) =>
+        prev.map((p) =>
+          p._id === postId
+            ? {
+                ...p,
+                likes: liked
+                  ? p.likes.filter((id) => id !== user.id)
+                  : [...p.likes, user.id],
+              }
+            : p
+        )
+      );
+    } catch {
+      addToast("Failed to like post");
     }
   };
 
-  const handleDeletePost = async (post) => {
-    if (!isSignedIn || !user) return addToast("Sign in to delete posts.");
-    const confirmed = window.confirm("Delete this post?");
-    if (!confirmed) return;
+  //
+  // Save / Unsave Post
+  //
+  const handleSave = async (postId) => {
+    if (!isSignedIn) return addToast("Sign in to save");
+
     try {
-      const jwt = await getToken();
-      await api.delete(`/posts/${post._id}`, { headers: { Authorization: `Bearer ${jwt}` } });
-      addToast("Post deleted");
-      await fetchPosts();
-    } catch (err) {
-      console.error(err);
-      addToast("Could not delete post");
+      const token = await getToken();
+      const isSaved = savedState[postId];
+
+      if (!isSaved) {
+        await api.post(
+          `/save/${postId}/save`,
+          {},
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        addToast("Saved");
+      } else {
+        await api.post(
+          `/save/${postId}/unsave`,
+          {},
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        addToast("Removed");
+      }
+
+      setSavedState((prev) => ({
+        ...prev,
+        [postId]: !isSaved,
+      }));
+    } catch {
+      addToast("Failed to save");
     }
   };
 
-  const handleReportPost = async (post, reason) => {
-    try {
-      const jwt = isSignedIn ? await getToken() : null;
-      await api.post(`/posts/${post._id}/report`, { reason: reason || "User reported from UI" }, { headers: jwt ? { Authorization: `Bearer ${jwt}` } : {} });
-      addToast("Report submitted");
-    } catch (err) {
-      addToast("Report submitted");
-    }
-  };
+  //
+  // Comments
+  //
+const handleAddComment = async (postId) => {
+  const text = (commentInputs[postId] || "").trim();
+  if (!text) return;
 
-  // Memoize post cards
+  setCommentLoading(p => ({ ...p, [postId]: true }));
+
+  try {
+    const token = await getToken();
+
+    const res = await api.post(
+      `/posts/${postId}/comments`,
+      { text },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    const newComment = res.data.comment;
+
+    // local update instead of fetchPosts()
+    setPosts(prev =>
+      prev.map(p =>
+        p._id === postId
+          ? { ...p, comments: [...p.comments, newComment] }
+          : p
+      )
+    );
+
+    addToast("Comment added");
+    setCommentInputs(p => ({ ...p, [postId]: "" }));
+  } catch {
+    addToast("Failed to comment");
+  }
+
+  setCommentLoading(p => ({ ...p, [postId]: false }));
+};
+
+
+const handleDeleteComment = async (postId, commentId) => {
+  try {
+    const token = await getToken();
+
+    await api.delete(`/posts/${postId}/comments/${commentId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    setPosts(prev =>
+      prev.map(p =>
+        p._id === postId
+          ? { ...p, comments: p.comments.filter(c => c._id !== commentId) }
+          : p
+      )
+    );
+
+    addToast("Comment deleted");
+  } catch {
+    addToast("Failed to delete");
+  }
+};
+
+
+  //
+  // Post Cards Rendering
+  //
   const postCards = useMemo(() => {
     return posts.map((post) => {
-      const liked = post.likes?.includes?.(user?.id || "");
-      const isSaved = !!savedState[post._id];
-      const commentsWithPerm = (post.comments || []).map((c) => ({ ...c, showDelete: !!(user && (c.user === user.id || post.author === user.id)) }));
+      const liked = post.likes.includes(user?.id);
+      const saved = savedState[post._id] || false;
 
       return (
         <PostCard
           key={post._id}
-          post={{ ...post, comments: commentsWithPerm }}
+          post={post}
           user={user}
           liked={liked}
+          saved={saved}
           onLike={handleLike}
-          onToggleComments={handleToggleComments}
-          showComments={openCommentsPostId === post._id}
-          onShare={handleShare}
-          saved={isSaved}
           onSave={handleSave}
-          onDeleteComment={handleDeleteComment}
-          onAddComment={(id) => handleAddComment(id)}
-          commentState={{ value: commentInputs[post._id] || "", set: (v) => setCommentInputs((p) => ({ ...p, [post._id]: v })), loading: !!commentLoading[post._id] }}
-          onEdit={async (editData, setIsEditing) => {
-            // Only allow if author
-            if (!isSignedIn || !user) return addToast("Sign in to edit posts.");
-            try {
-              const jwt = await getToken();
-              const form = new FormData();
-              form.append("text", editData.text.trim());
-              form.append("tags", editData.tags);
-              if (editData.imageFile) form.append("image", editData.imageFile);
-              if (editData.removeImage) form.append("removeImage", "true");
-              await api.patch(`/posts/${post._id}`, form, {
-                headers: { Authorization: `Bearer ${jwt}` }
-              });
-              addToast("Post updated");
-              await fetchPosts();
-              setIsEditing(false);
-            } catch (err) {
-              console.error(err);
-              const msg = err?.response?.data?.message;
-              if (msg === "You can only edit if you are the author or an admin.") {
-                addToast(msg);
-              } else {
-                addToast("Could not update post");
-              }
-            }
+          onShare={() => {
+            navigator.clipboard.writeText(post.text || "");
+            addToast("Copied to clipboard");
           }}
-          onDelete={() => handleDeletePost(post)}
-          onReport={(reason) => handleReportPost(post, reason)}
-          openImage={(url) => openImage(url)}
+          showComments={openCommentsPostId === post._id}
+          onToggleComments={(id) =>
+            setOpenCommentsPostId(
+              openCommentsPostId === id ? null : id
+            )
+          }
+          commentState={{
+            value: commentInputs[post._id] || "",
+            set: (v) =>
+              setCommentInputs((p) => ({
+                ...p,
+                [post._id]: v,
+              })),
+            loading: !!commentLoading[post._id],
+          }}
+          onAddComment={() => handleAddComment(post._id)}
+          onDeleteComment={(commentId) =>
+            handleDeleteComment(post._id, commentId)
+          }
+onEdit={async (postId, data) => {
+  try {
+    const token = await getToken();
+    const form = new FormData();
+
+    form.append("text", data.text);
+    form.append("tags", data.tags);
+
+    if (data.newImageFile) {
+      form.append("image", data.newImageFile);
+    }
+
+    if (data.removeImage) {
+      form.append("removeImage", "true");
+    }
+
+    const res = await api.patch(`/posts/${postId}`, form, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "multipart/form-data",
+      },
+    });
+
+    // DO NOT FETCH POSTS — update locally to avoid scroll jump
+    const updated = res.data.post;
+
+    setPosts(prev =>
+      prev.map(p => (p._id === postId ? updated : p))
+    );
+
+    addToast("Updated!");
+  } catch (err) {
+    addToast("Failed to update");
+  }
+}}
+
+
+          onDelete={async () => {
+            if (!window.confirm("Delete this post?")) return;
+            const token = await getToken();
+            await api.delete(`/posts/${post._id}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            addToast("Deleted");
+            fetchPosts();
+          }}
+          openImage={(url) => setImageModal(url)}
         />
       );
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [posts, user, savedState, openCommentsPostId, commentInputs, commentLoading]);
+  }, [
+    posts,
+    savedState,
+    openCommentsPostId,
+    commentInputs,
+    commentLoading,
+    user,
+  ]);
 
+  //
+  // UI RENDER
+  //
   return (
-    <section className="min-h-screen w-full bg-gradient-to-br from-[#07101a] via-[#061328] to-[#071428] text-white pb-12">
+    <section className="min-h-screen w-full bg-gradient-to-br from-[#07101a] via-[#061328] to-[#071428] text-white pb-20">
       <div className="max-w-4xl mx-auto px-4 pt-10">
-        <div className="rounded-2xl p-6 bg-gradient-to-br from-[#071428] to-[#0b2136] border border-[#1e3a5e]/40 shadow-lg flex flex-col sm:flex-row items-center gap-4 mb-8">
+
+        {/* ===== Hero Banner ===== */}
+        <div className="rounded-2xl p-6 bg-gradient-to-br from-[#071428] to-[#0b2136] border border-[#1e3a5e]/40 shadow-lg flex flex-col md:flex-row items-center gap-4 mb-10">
           <div className="p-3 rounded-xl bg-gradient-to-br from-[#2f68b6] to-[#1b3a78]">
-            <CodeXml size={48} className="text-white" />
+            <CodeXml size={48} />
           </div>
-          <div className="flex-1 text-center sm:text-left">
-            <h1 className="text-3xl sm:text-4xl font-extrabold leading-tight">Welcome to <span className="text-[#9fc1ff]">DevVerse</span></h1>
-            <p className="text-gray-300 mt-1">A friendly community for developers — share projects, ask questions, and collaborate.</p>
+
+          <div className="flex-1 text-center md:text-left">
+            <h1 className="text-3xl md:text-4xl font-extrabold">
+              Welcome to <span className="text-[#9fc1ff]">DevVerse</span>
+            </h1>
+            <p className="text-gray-300 mt-1 text-sm md:text-base">
+              A friendly community for developers — share projects and collaborate.
+            </p>
           </div>
+
           <div className="flex gap-3">
-            <button onClick={() => navigate('/join')} className="px-4 py-2 rounded-lg bg-[#1f3b66] hover:bg-[#234f87]">Join</button>
-            <button onClick={() => window.scrollTo({ top: 700, behavior: 'smooth' })} className="px-4 py-2 rounded-lg border border-[#2d4f7a]">Explore</button>
+            <button
+              onClick={() => navigate("/join")}
+              className="px-4 py-2 rounded-lg bg-[#1f3b66] hover:bg-[#234f87] transition"
+            >
+              Join
+            </button>
+
+            <button
+              onClick={() =>
+                window.scrollTo({ top: 700, behavior: "smooth" })
+              }
+              className="px-4 py-2 rounded-lg border border-[#2d4f7a] hover:bg-[#142644] transition"
+            >
+              Explore
+            </button>
           </div>
         </div>
 
-        <div className="mb-10">
-          <Composer user={user} isSignedIn={isSignedIn} onPost={handlePost} uploading={uploading} />
-        </div>
+        {/* Composer */}
+        <Composer
+          user={user}
+          isSignedIn={isSignedIn}
+          onPost={handlePost}
+          uploading={uploading}
+        />
 
-        <div className="mt-8">
-          {loading ? (
-            <div className="space-y-3">
-              {[1,2,3].map((i)=> (
-                <div key={i} className="animate-pulse bg-[#061427] border border-[#17314d] rounded-lg p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gray-700" />
-                    <div className="flex-1 space-y-2">
-                      <div className="h-3 w-1/3 bg-gray-700 rounded" />
-                      <div className="h-2 w-1/6 bg-gray-700 rounded" />
-                    </div>
-                  </div>
-                  <div className="mt-3 h-4 bg-gray-700 w-4/5 rounded" />
-                  <div className="mt-3 h-36 bg-gray-700 rounded" />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {error && <div className="text-red-400">{error}</div>}
-              {posts.length === 0 && <div className="text-gray-400 text-center py-8">No posts yet — start the conversation!</div>}
-              {postCards}
-            </div>
-          )}
-        </div>
+        {/* Posts */}
+        {loading ? (
+          <div className="text-center text-gray-400 py-10">
+            Loading posts...
+          </div>
+        ) : (
+          <div className="space-y-5">{postCards}</div>
+        )}
       </div>
 
+      {/* ===== Image Modal ===== */}
       {imageModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
           <div className="max-w-4xl w-full">
-            <button onClick={closeImage} className="mb-2 text-white px-3 py-1 bg-[#16273f] rounded">Close</button>
-            <img src={imageModal} alt="Full view" className="rounded shadow-lg w-full h-auto object-contain" />
+            <button
+              onClick={() => setImageModal(null)}
+              className="mb-2 px-3 py-1 bg-[#16273f] text-white rounded flex items-center gap-2"
+            >
+              <X size={16} /> Close
+            </button>
+
+            <img
+              src={imageModal}
+              className="rounded-lg shadow-xl w-full object-contain max-h-[80vh]"
+            />
           </div>
         </div>
       )}
 
-      <div className="fixed right-4 bottom-6 z-50 flex flex-col gap-2">
+      {/* ===== Toasts ===== */}
+      <div className="fixed right-4 top-4 z-50 flex flex-col gap-2">
         {toasts.map((t) => (
-          <div key={t.id} className="bg-[#081829] border border-[#17314d] text-white px-4 py-2 rounded shadow">{t.text}</div>
+          <Toast key={t.id} text={t.text} />
         ))}
       </div>
     </section>

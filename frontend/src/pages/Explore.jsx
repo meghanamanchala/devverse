@@ -1,12 +1,19 @@
 // src/pages/Explore.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useUser, useAuth } from "@clerk/clerk-react";
+import {
+  BookmarkCheck,
+} from "lucide-react";
 import api from "../app/api";
 import PostCard from "../components/Shared/PostCard";
 
 const Explore = () => {
+  const { user, isLoaded, isSignedIn } = useUser();
+  const { getToken } = useAuth();
+
+  // UI + data state
   const [toasts, setToasts] = useState([]);
-  const addToast = (text, life = 3500) => {
+  const addToast = (text, life = 3000) => {
     const id = Date.now() + Math.random();
     setToasts((t) => [...t, { id, text }]);
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), life);
@@ -17,29 +24,28 @@ const Explore = () => {
   const [displayedPosts, setDisplayedPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // interaction state
+  const [savedState, setSavedState] = useState({});
   const [likeState, setLikeState] = useState({});
   const [openCommentsPostId, setOpenCommentsPostId] = useState(null);
   const [commentInputs, setCommentInputs] = useState({});
   const [commentLoading, setCommentLoading] = useState({});
+
+  // controls & filters
   const [postMode, setPostMode] = useState("trending"); // trending | popular | recent
   const [search, setSearch] = useState("");
   const [activeTag, setActiveTag] = useState("");
-  const [savedState, setSavedState] = useState({});
-  const { user, isSignedIn } = useUser();
-  const { getToken } = useAuth();
 
-  const handleSave = (postId) => {
-    setSavedState((prev) => ({ ...prev, [postId]: !prev[postId] }));
-    addToast(savedState[postId] ? "Removed from saved" : "Saved post");
-  };
-
-  const fetchPostsAndTags = async () => {
+  // fetch all posts + build trending tags
+  const fetchPostsAndTags = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get("/posts");
       const posts = Array.isArray(res.data.posts) ? res.data.posts : [];
       setAllPosts(posts);
 
+      // trending tags
       const tagCounts = {};
       posts.forEach((post) => {
         (post.tags || []).forEach((tag) => {
@@ -51,33 +57,61 @@ const Explore = () => {
         .sort((a, b) => b[1] - a[1])
         .map(([tag, count]) => ({ tag, count }));
       setTrending(sortedTags);
+
       setError(null);
     } catch (err) {
       console.error(err);
-      setError("Failed to load trending data");
+      setError("Failed to load posts");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // fetch saved posts for the signed-in user (to build savedState map)
+  const fetchSavedPosts = useCallback(async () => {
+    if (!isLoaded || !isSignedIn) return;
+    try {
+      const token = await getToken();
+      const res = await api.get("/save/saved-posts", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const saved = res.data.saved || [];
+      const map = {};
+      saved.forEach((p) => (map[p._id] = true));
+      setSavedState(map);
+    } catch (err) {
+      console.error("Failed to fetch saved posts", err);
+    }
+  }, [isLoaded, isSignedIn, getToken]);
 
   useEffect(() => {
     fetchPostsAndTags();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchPostsAndTags]);
 
   useEffect(() => {
+    fetchSavedPosts();
+  }, [fetchSavedPosts]);
+
+  // compute displayedPosts using filters/sorting (keeps your original logic)
+  useEffect(() => {
     let posts = [...allPosts];
+
     if (activeTag) {
-      posts = posts.filter((p) => (p.tags || []).map(t => t.toLowerCase()).includes(activeTag.toLowerCase()));
-    }
-    if (search.trim()) {
-      const q = search.trim().toLowerCase();
       posts = posts.filter((p) =>
-        (p.text && p.text.toLowerCase().includes(q)) ||
-        (p.user?.username && p.user.username.toLowerCase().includes(q)) ||
-        (p.tags && p.tags.some(t => t.toLowerCase().includes(q)))
+        (p.tags || []).map((t) => t.toLowerCase()).includes(activeTag.toLowerCase())
       );
     }
+
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      posts = posts.filter(
+        (p) =>
+          (p.text && p.text.toLowerCase().includes(q)) ||
+          (p.user?.username && p.user.username.toLowerCase().includes(q)) ||
+          (p.tags && p.tags.some((t) => t.toLowerCase().includes(q)))
+      );
+    }
+
     if (postMode === "trending") {
       posts.sort((a, b) => {
         const likesA = a.likes?.length || 0;
@@ -97,136 +131,301 @@ const Explore = () => {
     } else if (postMode === "recent") {
       posts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     }
+
     setDisplayedPosts(posts.slice(0, 10));
   }, [allPosts, postMode, search, activeTag]);
 
+  // -------------------------
+  // Like / Unlike
+  // -------------------------
   const handleLike = async (postId, liked) => {
-    if (!isSignedIn || !user) return;
+    if (!isSignedIn) return addToast("Sign in to like");
     try {
-      const jwt = await getToken();
-      if (!liked) await api.post(`/posts/${postId}/like`, {}, { headers: { Authorization: `Bearer ${jwt}` } });
-      else await api.post(`/posts/${postId}/unlike`, {}, { headers: { Authorization: `Bearer ${jwt}` } });
-      setLikeState((p) => ({ ...p, [postId]: !liked }));
-      await fetchPostsAndTags();
+      const token = await getToken();
+
+      if (!liked) {
+        await api.post(`/posts/${postId}/like`, {}, { headers: { Authorization: `Bearer ${token}` } });
+      } else {
+        await api.post(`/posts/${postId}/unlike`, {}, { headers: { Authorization: `Bearer ${token}` } });
+      }
+
+      // update locally so UI is instant
+      setAllPosts((prev) =>
+        prev.map((p) =>
+          p._id === postId
+            ? {
+                ...p,
+                likes: liked
+                  ? (p.likes || []).filter((id) => id !== user.id)
+                  : [...(p.likes || []), user.id],
+              }
+            : p
+        )
+      );
+
+      addToast(liked ? "Unliked" : "Liked");
     } catch (err) {
-      console.error(err);
+      console.error("like error", err);
+      addToast("Failed to like");
     }
   };
 
-  const handleToggleComments = (postId) => {
-    setOpenCommentsPostId((prev) => (prev === postId ? null : postId));
+  // -------------------------
+  // Save / Unsave
+  // -------------------------
+  const handleSave = async (postId) => {
+    if (!isSignedIn) return addToast("Sign in to save");
+    try {
+      const token = await getToken();
+      const isSaved = savedState[postId];
+
+      if (!isSaved) {
+        await api.post(`/save/${postId}/save`, {}, { headers: { Authorization: `Bearer ${token}` } });
+        addToast("Saved");
+      } else {
+        await api.post(`/save/${postId}/unsave`, {}, { headers: { Authorization: `Bearer ${token}` } });
+        addToast("Removed");
+      }
+
+      setSavedState((prev) => ({ ...prev, [postId]: !isSaved }));
+    } catch (err) {
+      console.error("save error", err);
+      addToast("Failed to save");
+    }
   };
 
-  const handleAddComment = async (type, postId, value) => {
-    if (type === 'input') {
-      setCommentInputs((p) => ({ ...p, [postId]: value }));
-      return;
-    }
-    if (!isSignedIn || !user) return addToast("Sign in to comment.");
-    const val = (commentInputs[postId] || "").trim();
-    if (!val) return;
+  // -------------------------
+  // Add Comment
+  // -------------------------
+  const handleAddComment = async (postId) => {
+    const text = (commentInputs[postId] || "").trim();
+    if (!text) return;
+    if (!isSignedIn) return addToast("Sign in to comment");
+
     setCommentLoading((p) => ({ ...p, [postId]: true }));
+
     try {
-      const jwt = await getToken();
-      await api.post(`/posts/${postId}/comments`, { text: val }, { headers: { Authorization: `Bearer ${jwt}` } });
+      const token = await getToken();
+      const res = await api.post(
+        `/posts/${postId}/comments`,
+        { text },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      const newComment = res.data.comment;
+
+      // ensure userInfo present (frontend adds if backend doesn't)
+      if (!newComment.userInfo) {
+        newComment.userInfo = {
+          username: user?.username || (user?.primaryEmailAddress?.emailAddress || "").split("@")[0],
+          name: user?.fullName || user?.username,
+        };
+      }
+
+      // update posts locally
+      setAllPosts((prev) =>
+        prev.map((p) =>
+          p._id === postId ? { ...p, comments: [...(p.comments || []), newComment] } : p
+        )
+      );
+
       setCommentInputs((p) => ({ ...p, [postId]: "" }));
-      await fetchPostsAndTags();
+      addToast("Comment added");
     } catch (err) {
-      console.error(err);
+      console.error("add comment error", err);
+      addToast("Failed to comment");
     } finally {
       setCommentLoading((p) => ({ ...p, [postId]: false }));
     }
   };
 
+  // -------------------------
+  // Delete Comment
+  // -------------------------
   const handleDeleteComment = async (postId, commentId) => {
-    if (!isSignedIn || !user) return addToast("Sign in to delete comments.");
+    if (!isSignedIn) return addToast("Sign in to delete");
     try {
-      const jwt = await getToken();
-      await api.delete(`/posts/${postId}/comments/${commentId}`, { headers: { Authorization: `Bearer ${jwt}` } });
-      addToast("Comment deleted");
-      await fetchPostsAndTags();
-    } catch (err) {
-      console.error(err);
-      addToast("Unable to delete comment.");
-    }
-  };
-
-  // Menu handlers for Explore
-  // Inline edit handler for PostCard
-  const handleEditPost = async (editData, setIsEditing, post) => {
-    if (!isSignedIn || !user) return addToast("Sign in to edit posts.");
-    try {
-      const jwt = await getToken();
-      const form = new FormData();
-      form.append("text", editData.text.trim());
-      form.append("tags", editData.tags);
-      if (editData.imageFile) form.append("image", editData.imageFile);
-      if (editData.removeImage) form.append("removeImage", "true");
-      await api.patch(`/posts/${post._id}`, form, {
-        headers: { Authorization: `Bearer ${jwt}` }
+      const token = await getToken();
+      await api.delete(`/posts/${postId}/comments/${commentId}`, {
+        headers: { Authorization: `Bearer ${token}` },
       });
-      addToast("Post updated");
-      await fetchPostsAndTags();
-      setIsEditing(false);
+
+      // update locally
+      setAllPosts((prev) =>
+        prev.map((p) =>
+          p._id === postId ? { ...p, comments: (p.comments || []).filter((c) => c._id !== commentId) } : p
+        )
+      );
+
+      addToast("Comment deleted");
     } catch (err) {
-      console.error(err);
-      const msg = err?.response?.data?.message;
-      if (msg === "You can only edit if you are the author or an admin.") {
-        addToast(msg);
-      } else {
-        addToast("Could not update post");
-      }
+      console.error("delete comment err", err);
+      addToast("Failed to delete");
     }
   };
 
-  const handleDeletePost = async (post) => {
-    if (!isSignedIn || !user) return addToast("Sign in to delete posts.");
-    const confirmed = window.confirm("Delete this post?");
-    if (!confirmed) return;
+  // -------------------------
+  // Edit Post (inline)
+  // -------------------------
+  const handleEditPost = async (postId, data) => {
+    if (!isSignedIn) return addToast("Sign in to edit");
     try {
-      const jwt = await getToken();
-      await api.delete(`/posts/${post._id}`, { headers: { Authorization: `Bearer ${jwt}` } });
-      addToast("Post deleted");
-      await fetchPostsAndTags();
+      const token = await getToken();
+      const form = new FormData();
+      form.append("text", data.text);
+      form.append("tags", data.tags);
+
+      if (data.newImageFile) form.append("image", data.newImageFile);
+      if (data.removeImage) form.append("removeImage", "true");
+
+      const res = await api.patch(`/posts/${postId}`, form, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      const updated = res.data.post;
+      // update locally
+      setAllPosts((prev) => prev.map((p) => (p._id === postId ? updated : p)));
+      addToast("Updated");
     } catch (err) {
-      console.error(err);
-      addToast("Could not delete post");
+      console.error("edit post err", err);
+      addToast("Failed to update");
     }
   };
 
-  const handleReportPost = async (post, reason) => {
+  // -------------------------
+  // Delete Post
+  // -------------------------
+  const handleDeletePost = async (postId) => {
+    if (!isSignedIn) return addToast("Sign in to delete");
+    if (!window.confirm("Delete this post?")) return;
     try {
-      const jwt = isSignedIn ? await getToken() : null;
-      await api.post(`/posts/${post._id}/report`, { reason: reason || "Reported from Explore" }, { headers: jwt ? { Authorization: `Bearer ${jwt}` } : {} });
-      addToast("Report submitted");
+      const token = await getToken();
+      await api.delete(`/posts/${postId}`, { headers: { Authorization: `Bearer ${token}` } });
+      // remove locally
+      setAllPosts((prev) => prev.filter((p) => p._id !== postId));
+      addToast("Deleted");
     } catch (err) {
-      addToast("Report submitted");
+      console.error("delete post err", err);
+      addToast("Failed to delete");
     }
   };
 
+  // -------------------------
+  // Render PostCard list using the same PostCard signature as Home/Saved
+  // -------------------------
+  const postCards = useMemo(() => {
+    return displayedPosts.map((post) => {
+      const liked = (post.likes || []).includes(user?.id);
+      const saved = !!savedState[post._id];
+
+      return (
+        <PostCard
+          key={post._id}
+          post={post}
+          user={user}
+          liked={liked}
+          saved={saved}
+          onLike={handleLike}
+          onSave={handleSave}
+          onShare={() => {
+            navigator.clipboard.writeText(post.text || "");
+            addToast("Copied!");
+          }}
+          showComments={openCommentsPostId === post._id}
+          onToggleComments={(id) =>
+            setOpenCommentsPostId(openCommentsPostId === id ? null : id)
+          }
+          commentState={{
+            value: commentInputs[post._id] || "",
+            set: (v) => setCommentInputs((p) => ({ ...p, [post._id]: v })),
+            loading: !!commentLoading[post._id],
+          }}
+          onAddComment={() => handleAddComment(post._id)}
+          onDeleteComment={(commentId) => handleDeleteComment(post._id, commentId)}
+          onEdit={(postId, data) => handleEditPost(postId, data)}
+          onDelete={() => handleDeletePost(post._id)}
+          openImage={(url) => {
+            // open image modal — reuse toast for now; if you have a modal use state
+            // I'll just set a temporary toast as placeholder — adapt to your modal state if needed
+            // addToast("open image: " + url);
+            // Better: set a state for image modal if you want it to show big image
+            // For parity with Home/Saved we kept the same prop name.
+            // Implementation: parent component can show modal via setImageModal if you add that state.
+            // For now do nothing.
+          }}
+        />
+      );
+    });
+  }, [
+    displayedPosts,
+    savedState,
+    openCommentsPostId,
+    commentInputs,
+    commentLoading,
+    user,
+  ]);
+
+  // UI render — preserved layout, just inject new postCards
   return (
     <section className="min-h-screen w-full bg-gradient-to-br from-[#07101a] via-[#061328] to-[#071428] text-white pb-12">
       <div className="max-w-3xl mx-auto px-4 pt-10">
-        <h2 className="text-2xl font-bold mb-6">Explore</h2>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold">Explore</h2>
+          <div className="flex items-center gap-2 text-sm text-gray-300">
+            <BookmarkCheck size={20} className="text-blue-300" /> Browse posts
+          </div>
+        </div>
 
+        {/* Search + Mode */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
           <input
             type="text"
             className="flex-1 rounded bg-[#081625] border border-[#17314d] px-3 py-2 text-sm text-gray-100"
             placeholder="Search posts, users, or tags..."
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={(e) => setSearch(e.target.value)}
           />
           <div className="flex gap-2 mt-2 sm:mt-0">
-            <button onClick={() => setPostMode("trending")}
-              className={`px-3 py-1 rounded ${postMode === 'trending' ? 'bg-[#2d67b8] text-white' : 'bg-[#081625] text-gray-300'} border border-[#17314d]`}>Trending</button>
-            <button onClick={() => setPostMode("popular")}
-              className={`px-3 py-1 rounded ${postMode === 'popular' ? 'bg-[#2d67b8] text-white' : 'bg-[#081625] text-gray-300'} border border-[#17314d]`}>Popular</button>
-            <button onClick={() => setPostMode("recent")}
-              className={`px-3 py-1 rounded ${postMode === 'recent' ? 'bg-[#2d67b8] text-white' : 'bg-[#081625] text-gray-300'} border border-[#17314d]`}>Recent</button>
+            <button
+              onClick={() => setPostMode("trending")}
+              className={`px-3 py-1 rounded ${postMode === "trending" ? "bg-[#2d67b8] text-white" : "bg-[#081625] text-gray-300"} border border-[#17314d]`}
+            >
+              Trending
+            </button>
+            <button
+              onClick={() => setPostMode("popular")}
+              className={`px-3 py-1 rounded ${postMode === "popular" ? "bg-[#2d67b8] text-white" : "bg-[#081625] text-gray-300"} border border-[#17314d]`}
+            >
+              Popular
+            </button>
+            <button
+              onClick={() => setPostMode("recent")}
+              className={`px-3 py-1 rounded ${postMode === "recent" ? "bg-[#2d67b8] text-white" : "bg-[#081625] text-gray-300"} border border-[#17314d]`}
+            >
+              Recent
+            </button>
           </div>
         </div>
 
+        {/* Tags preview */}
+        {trending.length > 0 && (
+          <div className="mb-6 flex flex-wrap gap-2">
+            {trending.slice(0, 12).map((t) => (
+              <button
+                key={t.tag}
+                onClick={() => setActiveTag(activeTag === t.tag ? "" : t.tag)}
+                className={`px-3 py-1 rounded text-sm border ${activeTag === t.tag ? "bg-[#2d67b8] text-white" : "bg-[#081625] text-gray-300"} border-[#17314d]`}
+              >
+                #{t.tag} {t.count > 0 && <span className="text-xs text-gray-400 ml-1">({t.count})</span>}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Content */}
         <div>
           {loading ? (
             <div className="text-gray-400">Loading...</div>
@@ -235,41 +434,17 @@ const Explore = () => {
           ) : displayedPosts.length === 0 ? (
             <div className="text-gray-400">No posts found.</div>
           ) : (
-            <div className="space-y-4">
-              {displayedPosts.map((post) => {
-                const liked = post.likes?.includes?.(user?.id || "");
-                const isSaved = !!savedState[post._id];
-                const commentsWithPerm = (post.comments || []).map((c) => ({ ...c, showDelete: !!(user && (c.user === user.id || post.author === user.id)) }));
-                return (
-                  <PostCard
-                    key={post._id}
-                    post={{ ...post, comments: commentsWithPerm }}
-                    user={user}
-                    liked={liked}
-                    onLike={handleLike}
-                    onAddComment={handleAddComment}
-                    commentValue={commentInputs[post._id] || ""}
-                    commentLoading={!!commentLoading[post._id]}
-                    onToggleComments={handleToggleComments}
-                    showComments={openCommentsPostId === post._id}
-                    onDeleteComment={handleDeleteComment}
-                    onShare={() => {}}
-                    saved={isSaved}
-                    onSave={handleSave}
-                    onEdit={(editData, setIsEditing) => handleEditPost(editData, setIsEditing, post)}
-                    onDelete={() => handleDeletePost(post)}
-                    onReport={(reason) => handleReportPost(post, reason)}
-                  />
-                );
-              })}
-            </div>
+            <div className="space-y-4">{postCards}</div>
           )}
         </div>
       </div>
 
+      {/* Toast container */}
       <div className="fixed right-4 bottom-6 z-50 flex flex-col gap-2">
         {toasts.map((t) => (
-          <div key={t.id} className="bg-[#081829] border border-[#17314d] text-white px-4 py-2 rounded shadow">{t.text}</div>
+          <div key={t.id} className="bg-[#081829] border border-[#17314d] text-white px-4 py-2 rounded shadow">
+            {t.text}
+          </div>
         ))}
       </div>
     </section>

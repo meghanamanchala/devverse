@@ -15,6 +15,8 @@ const errorHandler = require("./middleware/errorHandler");
 const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
 const postRoutes = require("./routes/postRoutes");
+const saveRoutes = require("./routes/saveRoutes");
+
 
 const app = express();
 
@@ -36,6 +38,7 @@ app.use(cookieParser());
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/posts", postRoutes);
+app.use("/api/save", saveRoutes);
 
 app.use(errorHandler);
 
