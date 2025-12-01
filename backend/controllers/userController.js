@@ -6,7 +6,7 @@ const bcrypt = require('bcryptjs');
 // Get user profile
 exports.getProfile = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user.id).select('-password');
+    const user = await User.findOne({ clerkId: req.user.id }).select('-password');
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
     res.json({ success: true, user });
   } catch (err) {
@@ -42,8 +42,9 @@ exports.deleteProfile = async (req, res, next) => {
 exports.followUser = async (req, res, next) => {
   try {
     const userToFollow = await User.findById(req.params.id);
-    const currentUser = await User.findById(req.user.id);
+    const currentUser = await User.findOne({ clerkId: req.user.id });
     if (!userToFollow) return res.status(404).json({ success: false, message: 'User not found' });
+    if (!currentUser) return res.status(404).json({ success: false, message: 'Current user not found' });
     if (userToFollow._id.equals(currentUser._id)) {
       return res.status(400).json({ success: false, message: 'Cannot follow yourself' });
     }
@@ -66,8 +67,9 @@ exports.followUser = async (req, res, next) => {
 exports.unfollowUser = async (req, res, next) => {
   try {
     const userToUnfollow = await User.findById(req.params.id);
-    const currentUser = await User.findById(req.user.id);
+    const currentUser = await User.findOne({ clerkId: req.user.id });
     if (!userToUnfollow) return res.status(404).json({ success: false, message: 'User not found' });
+    if (!currentUser) return res.status(404).json({ success: false, message: 'Current user not found' });
     if (!currentUser.following) currentUser.following = [];
     if (!userToUnfollow.followers) userToUnfollow.followers = [];
     if (!currentUser.following.includes(userToUnfollow._id)) {
