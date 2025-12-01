@@ -681,12 +681,6 @@ onEdit={async (postId, data) => {
           </div>
 
           <div className="flex gap-3">
-            <button
-              onClick={() => navigate("/join")}
-              className="px-4 py-2 rounded-lg bg-[#1f3b66] hover:bg-[#234f87] transition"
-            >
-              Join
-            </button>
 
             <button
               onClick={() =>
