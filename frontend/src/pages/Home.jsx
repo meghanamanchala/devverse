@@ -345,6 +345,23 @@ const Home = () => {
 
   const [posts, setPosts] = useState([]);
   const [savedState, setSavedState] = useState({});
+
+  // Fetch saved posts for the signed-in user (to build savedState map)
+  const fetchSavedPosts = async () => {
+    if (!isLoaded || !isSignedIn) return;
+    try {
+      const token = await getToken();
+      const res = await api.get("/save/saved-posts", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const saved = res.data.saved || [];
+      const map = {};
+      saved.forEach((p) => (map[p._id] = true));
+      setSavedState(map);
+    } catch (err) {
+      console.error("Failed to fetch saved posts", err);
+    }
+  };
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [openCommentsPostId, setOpenCommentsPostId] = useState(null);
@@ -391,7 +408,8 @@ const Home = () => {
 
   useEffect(() => {
     fetchPosts();
-  }, [fetchPosts]);
+    fetchSavedPosts();
+  }, [fetchPosts, isLoaded, isSignedIn]);
 
 
   //
@@ -467,11 +485,9 @@ const Home = () => {
   //
   const handleSave = async (postId) => {
     if (!isSignedIn) return addToast("Sign in to save");
-
     try {
       const token = await getToken();
       const isSaved = savedState[postId];
-
       if (!isSaved) {
         await api.post(
           `/save/${postId}/save`,
@@ -487,11 +503,8 @@ const Home = () => {
         );
         addToast("Removed");
       }
-
-      setSavedState((prev) => ({
-        ...prev,
-        [postId]: !isSaved,
-      }));
+      // Always re-fetch saved posts after save/unsave to sync state and show tick
+      fetchSavedPosts();
     } catch {
       addToast("Failed to save");
     }
@@ -599,45 +612,34 @@ const handleDeleteComment = async (postId, commentId) => {
           onDeleteComment={(commentId) =>
             handleDeleteComment(post._id, commentId)
           }
-onEdit={async (postId, data) => {
-  try {
-    const token = await getToken();
-    const form = new FormData();
-
-    form.append("text", data.text);
-    form.append("tags", data.tags);
-
-    if (data.newImageFile) {
-      form.append("image", data.newImageFile);
-    }
-
-    if (data.removeImage) {
-      form.append("removeImage", "true");
-    }
-
-    const res = await api.patch(`/posts/${postId}`, form, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "multipart/form-data",
-      },
-    });
-
-    // DO NOT FETCH POSTS — update locally to avoid scroll jump
-    const updated = res.data.post;
-
-    setPosts(prev =>
-      prev.map(p => (p._id === postId ? updated : p))
-    );
-
-    addToast("Updated!");
-  } catch (err) {
-    addToast("Failed to update");
-  }
-}}
-
-
+          onEdit={async (postId, data) => {
+            try {
+              const token = await getToken();
+              const form = new FormData();
+              form.append("text", data.text);
+              form.append("tags", data.tags);
+              if (data.newImageFile) {
+                form.append("image", data.newImageFile);
+              }
+              if (data.removeImage) {
+                form.append("removeImage", "true");
+              }
+              const res = await api.patch(`/posts/${postId}`, form, {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  "Content-Type": "multipart/form-data",
+                },
+              });
+              const updated = res.data.post;
+              setPosts(prev =>
+                prev.map(p => (p._id === postId ? updated : p))
+              );
+              addToast("Updated!");
+            } catch (err) {
+              addToast("Failed to update");
+            }
+          }}
           onDelete={async () => {
-            if (!window.confirm("Delete this post?")) return;
             const token = await getToken();
             await api.delete(`/posts/${post._id}`, {
               headers: { Authorization: `Bearer ${token}` },
@@ -646,6 +648,17 @@ onEdit={async (postId, data) => {
             fetchPosts();
           }}
           openImage={(url) => setImageModal(url)}
+          onReport={async (reason) => {
+            try {
+              const token = await getToken();
+              await api.post(`/posts/${post._id}/report`, { reason }, {
+                headers: { Authorization: `Bearer ${token}` }
+              });
+              addToast("Report submitted");
+            } catch {
+              addToast("Failed to report");
+            }
+          }}
         />
       );
     });

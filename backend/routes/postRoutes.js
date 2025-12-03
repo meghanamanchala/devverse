@@ -44,6 +44,9 @@ router.post(
 
 router.get("/", getPosts);
 router.get("/search", searchPosts);
+// Get posts by user
+const { getPostsByUser } = require("../controllers/postController");
+router.get("/user/:id", getPostsByUser);
 router.get("/:id", getPost);
 router.put("/:id", authMiddleware, upload.single("image"), updatePost);
 // Allow PATCH for partial updates (frontend uses PATCH)
