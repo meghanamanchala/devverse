@@ -300,7 +300,7 @@ const Explore = () => {
   // -------------------------
   const handleDeletePost = async (postId) => {
     if (!isSignedIn) return addToast("Sign in to delete");
-    if (!window.confirm("Delete this post?")) return;
+    // removed confirm dialog for delete
     try {
       const token = await getToken();
       await api.delete(`/posts/${postId}`, { headers: { Authorization: `Bearer ${token}` } });
@@ -355,6 +355,17 @@ const Explore = () => {
             // For parity with Home/Saved we kept the same prop name.
             // Implementation: parent component can show modal via setImageModal if you add that state.
             // For now do nothing.
+          }}
+          onReport={async (reason) => {
+            try {
+              const token = await getToken();
+              await api.post(`/posts/${post._id}/report`, { reason }, {
+                headers: { Authorization: `Bearer ${token}` }
+              });
+              addToast("Report submitted");
+            } catch {
+              addToast("Failed to report");
+            }
           }}
         />
       );

@@ -1,3 +1,31 @@
+// Get posts by user
+exports.getPostsByUser = async (req, res, next) => {
+  try {
+    const userId = req.params.id;
+    const posts = await Post.find({ author: userId }).sort({ createdAt: -1 });
+    // Collect all user IDs (authors + commenters)
+    const authorIds = posts.map((p) => p.author);
+    const commentUserIds = posts.flatMap((p) => p.comments.map((c) => c.user));
+    const allUserIds = [...new Set([...authorIds, ...commentUserIds])];
+    const users = await User.find({ clerkId: { $in: allUserIds } }).select("clerkId username name");
+    const userMap = {};
+    users.forEach((u) => {
+      userMap[u.clerkId] = { username: u.username, name: u.name };
+    });
+    const postsWithUser = posts.map((post) => {
+      const postObj = post.toObject();
+      postObj.user = userMap[post.author] || null;
+      postObj.comments = postObj.comments.map((c) => ({
+        ...c,
+        userInfo: userMap[c.user] || null
+      }));
+      return postObj;
+    });
+    res.json({ success: true, posts: postsWithUser });
+  } catch (err) {
+    next(err);
+  }
+};
 // Report a post
 exports.reportPost = async (req, res, next) => {
   try {
