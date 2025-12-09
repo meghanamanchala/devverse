@@ -14,7 +14,8 @@ module.exports = (io) => {
     socket.on('sendMessage', async ({ sender, receiver, text }) => {
       // Save message to DB
       const message = await Message.create({ sender, receiver, text });
-      // Emit to receiver if online
+      // Emit to both sender and receiver for instant update
+      io.to(sender).emit('receiveMessage', message);
       io.to(receiver).emit('receiveMessage', message);
     });
 
