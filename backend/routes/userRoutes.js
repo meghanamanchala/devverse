@@ -4,6 +4,21 @@ const router = express.Router();
 const { getProfile, updateProfile, deleteProfile, followUser, unfollowUser, searchUsers } = require('../controllers/userController');
 const authMiddleware = require('../middleware/authMiddleware');
 
+
+// @route   GET /api/users
+// Returns all users except the current user
+router.get('/', authMiddleware, async (req, res, next) => {
+  try {
+    const users = await require('../models/User').find({ clerkId: { $ne: req.user.id } }).select('-password');
+    console.log('API /api/users called by:', req.user.id);
+    console.log('Users found:', users);
+    res.json({ success: true, users });
+  } catch (err) {
+    console.error('Error in /api/users:', err);
+    next(err);
+  }
+});
+
 // @route   GET /api/users/profile
 router.get('/profile', authMiddleware, getProfile);
 
