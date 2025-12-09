@@ -57,6 +57,16 @@ exports.followUser = async (req, res, next) => {
     userToFollow.followers.push(currentUser._id);
     await currentUser.save();
     await userToFollow.save();
+
+    // Create notification for followed user
+    const Notification = require('../models/Notification');
+    await Notification.create({
+      user: userToFollow._id,
+      type: 'follow',
+      message: `${currentUser.username || 'Someone'} followed you!`,
+      isRead: false
+    });
+
     res.json({ success: true, message: 'User followed' });
   } catch (err) {
     next(err);

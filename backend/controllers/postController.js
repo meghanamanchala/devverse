@@ -235,6 +235,21 @@ exports.likePost = async (req, res, next) => {
     post.likes.push(req.user.id);
     await post.save();
 
+    // Create notification for post author (if not liking own post)
+    if (post.author.toString() !== req.user.id) {
+      const Notification = require('../models/Notification');
+      const User = require('../models/User');
+      const authorUser = await User.findOne({ clerkId: post.author });
+      if (authorUser) {
+        await Notification.create({
+          user: authorUser._id,
+          type: 'like',
+          message: `Your post was liked!`,
+          isRead: false
+        });
+      }
+    }
+
     res.json({ success: true, likes: post.likes.length });
   } catch (err) {
     next(err);
@@ -273,6 +288,21 @@ exports.addComment = async (req, res, next) => {
 
     post.comments.push(newComment);
     await post.save();
+
+    // Create notification for post author (if not commenting own post)
+    if (post.author.toString() !== req.user.id) {
+      const Notification = require('../models/Notification');
+      const User = require('../models/User');
+      const authorUser = await User.findOne({ clerkId: post.author });
+      if (authorUser) {
+        await Notification.create({
+          user: authorUser._id,
+          type: 'comment',
+          message: `Someone commented on your post!`,
+          isRead: false
+        });
+      }
+    }
 
     // Get the last inserted (the actual MongoDB comment)
     const savedComment = post.comments[post.comments.length - 1];

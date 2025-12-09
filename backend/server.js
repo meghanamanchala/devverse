@@ -16,7 +16,10 @@ const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
 const postRoutes = require("./routes/postRoutes");
 const saveRoutes = require("./routes/saveRoutes");
+
+
 const messageRoutes = require("./routes/messageRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
 
 
 const app = express();
@@ -36,11 +39,13 @@ app.use(express.urlencoded({ extended: true })); // ✅ REQUIRED for multer + cl
 app.use(cookieParser());
 
 // ✅ ROUTES
+
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/posts", postRoutes);
 app.use("/api/save", saveRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 app.use(errorHandler);
 

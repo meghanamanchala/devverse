@@ -17,6 +17,19 @@ module.exports = (io) => {
       // Emit to both sender and receiver for instant update
       io.to(sender).emit('receiveMessage', message);
       io.to(receiver).emit('receiveMessage', message);
+
+      // Create notification for receiver
+      const Notification = require('../models/Notification');
+      const User = require('../models/User');
+      const receiverUser = await User.findOne({ clerkId: receiver });
+      if (receiverUser) {
+        await Notification.create({
+          user: receiverUser._id,
+          type: 'message',
+          message: `You received a new message!`,
+          isRead: false
+        });
+      }
     });
 
     // Handle sending a notification
