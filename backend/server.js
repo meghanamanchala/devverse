@@ -27,10 +27,11 @@ const app = express();
 app.use(helmet());
 app.use(morgan("dev"));
 
-const allowedOrigins = process.env.CORS_ORIGINS
-  ? process.env.CORS_ORIGINS.split(",")
-  : ["http://localhost:5173"];
 
+const allowedOrigins = [
+  "https://devverse-psi.vercel.app", // Vercel frontend
+  "http://localhost:5173" // Local development
+];
 app.use(cors({ origin: allowedOrigins, credentials: true }));
 
 app.use(express.json());
