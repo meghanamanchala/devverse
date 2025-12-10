@@ -10,7 +10,7 @@ import Messages from "../pages/Messages";
 import Saved from "../pages/Saved";
 import Network from "../pages/Network";
 
-import Settings from "../pages/Settings";
+// ...existing code...
 import Signup from "../components/Auth/Signup";
 import AddPost from "../pages/AddPost";
 import Profile from "../pages/Profile";
@@ -30,7 +30,7 @@ const AppRoutes = () => (
   <Route path="/network" element={<ClerkProtected><Network /></ClerkProtected>} />
   {/* /posts now redirects to Home for backward compatibility */}
   <Route path="/posts" element={<Home />} />
-  <Route path="/settings" element={<ClerkProtected><Settings /></ClerkProtected>} />
+// ...existing code...
   <Route path="/profile" element={<ClerkProtected><Profile /></ClerkProtected>} />
   </Routes>
 );

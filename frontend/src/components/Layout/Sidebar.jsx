@@ -10,7 +10,7 @@ import {
   Bell,
   Bookmark,
   User,
-  Settings,
+  // ...existing code...
   Menu,
   X,
   LogIn,
@@ -27,7 +27,7 @@ const navItems = [
   { href: "/notifications", label: "Notifications", icon: <Bell size={20} /> },
   { href: "/saved", label: "Saved", icon: <Bookmark size={20} /> },
   { href: "/profile", label: "Profile", icon: <User size={20} /> },
-  { href: "/settings", label: "Settings", icon: <Settings size={20} /> },
+  // ...existing code...
 ];
 
 const Sidebar = () => {
