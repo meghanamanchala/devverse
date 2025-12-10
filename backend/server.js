@@ -29,8 +29,9 @@ app.use(morgan("dev"));
 
 
 const allowedOrigins = [
-  "https://devverse-psi.vercel.app", // Vercel frontend
-  "http://localhost:5173" // Local development
+  "https://devverse-tny3kdxyz-meghanas-projects-4693cb6a.vercel.app", // new Vercel frontend
+  "https://devverse-psi.vercel.app", // previous Vercel frontend (if needed)
+  "http://localhost:5173"
 ];
 app.use(cors({ origin: allowedOrigins, credentials: true }));
 
