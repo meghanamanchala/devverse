@@ -40,20 +40,17 @@ const saveUserToDB = async (user, getToken) => {
   try {
     const token = await getToken();
 
-    await fetch("http://localhost:5000/api/auth/save-user", {
-      method: "POST",
+    await api.post("/auth/save-user", {
+      clerkId: user.id,
+      email: user.primaryEmailAddress.emailAddress,
+      name: user.fullName,
+      username:
+        user.username ||
+        user.primaryEmailAddress.emailAddress.split("@")[0],
+    }, {
       headers: {
-        "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({
-        clerkId: user.id,
-        email: user.primaryEmailAddress.emailAddress,
-        name: user.fullName,
-        username:
-          user.username ||
-          user.primaryEmailAddress.emailAddress.split("@")[0],
-      }),
     });
   } catch (err) {
     console.error("❌ Error saving user:", err);
