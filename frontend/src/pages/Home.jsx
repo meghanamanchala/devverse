@@ -39,7 +39,7 @@ import PostCard from "../components/Shared/PostCard";
 const saveUserToDB = async (user, getToken) => {
   try {
     const token = await getToken();
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+    const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
     const userData = {
       clerkId: user.id,
       email: user.primaryEmailAddress.emailAddress,
