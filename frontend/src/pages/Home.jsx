@@ -49,7 +49,7 @@ const saveUserToDB = async (user, getToken) => {
         user.primaryEmailAddress.emailAddress.split("@")[0],
     };
     console.log("[saveUserToDB] Attempting to save user:", userData);
-    const response = await fetch(`${baseUrl}/api/auth/save-user`, {
+    const response = await fetch(`${baseUrl}/auth/save-user`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
