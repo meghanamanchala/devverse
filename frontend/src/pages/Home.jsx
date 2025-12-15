@@ -40,7 +40,16 @@ const saveUserToDB = async (user, getToken) => {
   try {
     const token = await getToken();
     const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
-    await fetch(`${baseUrl}/api/auth/save-user`, {
+    const userData = {
+      clerkId: user.id,
+      email: user.primaryEmailAddress.emailAddress,
+      name: user.fullName,
+      username:
+        user.username ||
+        user.primaryEmailAddress.emailAddress.split("@")[0],
+    };
+    console.log("[saveUserToDB] Attempting to save user:", userData);
+    const response = await fetch(`${baseUrl}/api/auth/save-user`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -55,6 +64,11 @@ const saveUserToDB = async (user, getToken) => {
           user.primaryEmailAddress.emailAddress.split("@")[0],
       }),
     });
+    const resJson = await response.json().catch(() => ({}));
+    console.log("[saveUserToDB] Response status:", response.status, "Response:", resJson);
+    if (!response.ok) {
+      console.error("[saveUserToDB] Failed to save user:", resJson);
+    }
   } catch (err) {
     console.error("❌ Error saving user:", err);
   }
