@@ -39,8 +39,8 @@ import PostCard from "../components/Shared/PostCard";
 const saveUserToDB = async (user, getToken) => {
   try {
     const token = await getToken();
-
-    await fetch("http://localhost:5000/api/auth/save-user", {
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+    await fetch(`${baseUrl}/api/auth/save-user`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

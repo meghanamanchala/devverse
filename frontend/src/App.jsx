@@ -3,7 +3,6 @@ import React, { useEffect } from "react";
 import { BrowserRouter } from "react-router-dom";
 import AppRoutes from "./routes/AppRoutes";
 import Sidebar from "./components/Layout/Sidebar";
-import ThemeToggle from "./components/Layout/ThemeToggle";
 import { useUser } from "@clerk/clerk-react";
 import { useDispatch } from "react-redux";
 import { setUser } from "./app/slices/authSlice";
@@ -21,7 +20,6 @@ const App = () => {
         email: user.emailAddresses?.[0]?.emailAddress,
         username: user.username,
         name: user.fullName,
-        // Only store serializable fields
       }));
     }
   }, [user, dispatch]);
